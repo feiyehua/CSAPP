@@ -1,10 +1,10 @@
 /*
  * @Author       : FeiYehua
  * @Date         : 2025-07-14 22:53:27
- * @LastEditTime : 2025-07-15 10:58:16
+ * @LastEditTime : 2025-07-15 11:36:44
  * @LastEditors  : FeiYehua
  * @Description  :
- * @FilePath     : bitXor.c
+ * @FilePath     : 1-bitXor.c
  *      © 2024 FeiYehua
  */
 // 1
@@ -17,7 +17,7 @@
  */
 int bitXor(int x, int y)
 {
-
+    
     // (~x)&(~y) set all bits equal to 0 in both x and y to 1
     int a = (~x) & (~y);
     // x&y set all bits equal to 0 in both x and y to 1
