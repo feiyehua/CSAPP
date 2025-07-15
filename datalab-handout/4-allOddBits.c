@@ -1,7 +1,7 @@
 /*
  * @Author       : FeiYehua
  * @Date         : 2025-07-15 12:22:53
- * @LastEditTime : 2025-07-15 12:45:58
+ * @LastEditTime : 2025-07-15 12:53:21
  * @LastEditors  : FeiYehua
  * @Description  :
  * @FilePath     : 4-allOddBits.c
@@ -17,12 +17,12 @@
  */
 int allOddBits(int x)
 {
-    int magicNumber=(0xAA<<8)+0xAA; // equals to 1010 1010 1010 1010
+    int magicNumber = (0xAA << 8) + 0xAA; // equals to 1010 1010 1010 1010
     int result = magicNumber;
-    result&=(x&magicNumber); // result == magicNumber if the lower 16 bits of x == 0xAAAA
-    x>>=16;
-    result&=(x&magicNumber); // result == magicNumber if the lower and upper 16 bits of x == 0xAAAA
+    result &= (x & magicNumber); // result == magicNumber if the lower 16 bits of x == 0xAAAA
+    x >>= 16;
+    result &= (x & magicNumber); // result == magicNumber if the lower and upper 16 bits of x == 0xAAAA
     // Now, if all odd-numbered bits in x set to 1, result == 0xAAAA
-    result^=magicNumber;
+    result ^= magicNumber;
     return !result;
 }
