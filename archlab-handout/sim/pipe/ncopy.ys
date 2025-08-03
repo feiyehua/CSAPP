@@ -18,20 +18,18 @@ ncopy:
 	# Loop header
 	xorq %rax,%rax		# count = 0;
 	andq %rdx,%rdx		# len <= 0?
-	irmovq $1, %r11 # %r11 = 1
-	irmovq $8, %r12 # %r12 = 8
 	jg Loop		# if so, goto Done:
 	ret
 Loop:
 	mrmovq (%rdi), %r10	# read val from src...
-	addq %r12, %rdi		# src++
+	iaddq $8, %rdi		# src++
 	rmmovq %r10, (%rsi)	# ...and store it to dst
 	andq %r10, %r10		# val <= 0?
 	jle Npos		# if so, goto Npos:
-	addq %r11, %rax		# count++
+	iaddq $1, %rax		# count++
 Npos:
-	addq %r12, %rsi		# dst++
-	subq %r11, %rdx		# len--
+	iaddq $8, %rsi		# dst++
+	iaddq $-1, %rdx		# len--
 	jg Loop			# if so, goto Loop:
 ##################################################################
 # Do not modify the following section of code
