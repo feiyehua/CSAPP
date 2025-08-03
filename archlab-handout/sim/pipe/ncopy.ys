@@ -16,7 +16,7 @@ ncopy:
 ##################################################################
 # You can modify this portion
 	# Loop header
-	iaddq $-7, %rdx
+	iaddq $-8, %rdx
 	jg Unrolled_loop		# if so, goto Done:
 	jmp Zero_check
 # Perform 8 * 1 loop unrolling
@@ -96,11 +96,11 @@ Npos8:
 	iaddq $8, %rsi		# dst++
 
 	iaddq $-8, %rdx
-	jg Unrolled_loop	# if len > 0, goto Unrolled_loop:
+	jge Unrolled_loop	# if len > 0, goto Unrolled_loop:
 
 Zero_check:
 	# Perform the rest iterations
-	iaddq $7, %rdx
+	iaddq $8, %rdx
 	jg Loop		# if so, goto Done:
 	ret
 
