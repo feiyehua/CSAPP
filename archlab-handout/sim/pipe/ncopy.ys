@@ -16,9 +16,11 @@ ncopy:
 ##################################################################
 # You can modify this portion
 	# Loop header
-	iaddq $-8, %rdx
-	jg Unrolled_loop		# if so, goto Done:
-	jmp Two_check
+	iaddq $-12, %rdx
+	jge Unrolled_loop		# if so, goto Done:
+	iaddq $12, %rdx
+	jg Loop
+	ret
 # Perform 8 * 1 loop unrolling
 	
 Unrolled_loop:
@@ -95,52 +97,67 @@ Npos7:
 Npos8:
 	iaddq $8, %rsi		# dst++
 
-	iaddq $-8, %rdx
+	mrmovq (%rdi), %r10	# read val from src...
+	iaddq $8, %rdi		# src++
+	rmmovq %r10, (%rsi)	# ...and store it to dst
+	andq %r10, %r10		# val <= 0?
+	jle Npos9		# if so, goto Npos9:
+	iaddq $1, %rax		# count++
+Npos9:
+	iaddq $8, %rsi		# dst++
+
+	mrmovq (%rdi), %r10	# read val from src...
+	iaddq $8, %rdi		# src++
+	rmmovq %r10, (%rsi)	# ...and store it to dst
+	andq %r10, %r10		# val <= 0?
+	jle Npos10		# if so, goto Npos10:
+	iaddq $1, %rax		# count++
+Npos10:
+	iaddq $8, %rsi		# dst++
+
+	mrmovq (%rdi), %r10	# read val from src...
+	iaddq $8, %rdi		# src++
+	rmmovq %r10, (%rsi)	# ...and store it to dst
+	andq %r10, %r10		# val <= 0?
+	jle Npos11		# if so, goto Npos11:
+	iaddq $1, %rax		# count++
+Npos11:
+	iaddq $8, %rsi		# dst++
+
+	mrmovq (%rdi), %r10	# read val from src...
+	iaddq $8, %rdi		# src++
+	rmmovq %r10, (%rsi)	# ...and store it to dst
+	andq %r10, %r10		# val <= 0?
+	jle Npos12		# if so, goto Npos12:
+	iaddq $1, %rax		# count++
+Npos12:
+	iaddq $8, %rsi		# dst++
+
+
+	iaddq $-12, %rdx
 	jge Unrolled_loop	# if len > 0, goto Unrolled_loop:
 
-Two_check:
-	iaddq $7, %rdx
-	jg Unrolled_loop_2
-	je Loop
-	ret
-
-
-Unrolled_loop_2:
-	mrmovq (%rdi), %r10	# read val from src...
-	iaddq $8, %rdi		# src++
-	rmmovq %r10, (%rsi)	# ...and store it to dst
-	andq %r10, %r10		# val <= 0?
-	jle Npos1_2		# if so, goto Npos1_2:
-	iaddq $1, %rax		# count++
-Npos1_2:
-	iaddq $8, %rsi		# dst++
-	# instructions above performs the first iteration
-
-	mrmovq (%rdi), %r10	# read val from src...
-	iaddq $8, %rdi		# src++
-	rmmovq %r10, (%rsi)	# ...and store it to dst
-	andq %r10, %r10		# val <= 0?
-	jle Npos2_2		# if so, goto Npos2_2:
-	iaddq $1, %rax		# count++
-Npos2_2:
-	iaddq $8, %rsi		# dst++
-
-	iaddq $-2, %rdx
-	jg Unrolled_loop_2	# if len > 0, goto Unrolled_loop_2:
+	iaddq $12, %rdx
 
 
 Zero_check:
 	# Perform the rest iterations
-	je Loop		# if so, goto Done:
-	ret
+	jg Loop			# if %rdx > 0, goto Loop to perform the rest iterations
+	ret				# if %rdx = 0, return
 
 Loop:
 	mrmovq (%rdi), %r10	# read val from src...
+	iaddq $8, %rdi		# src++
 	rmmovq %r10, (%rsi)	# ...and store it to dst
 	andq %r10, %r10		# val <= 0?
 	jle Npos		# if so, goto Npos:
 	iaddq $1, %rax		# count++
 Npos:
+	iaddq $8, %rsi		# dst++
+	iaddq $-1, %rdx
+	jg Loop
+
+
 ##################################################################
 # Do not modify the following section of code
 # Function epilogue.
