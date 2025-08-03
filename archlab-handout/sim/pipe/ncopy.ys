@@ -16,7 +16,7 @@ ncopy:
 ##################################################################
 # You can modify this portion
 	# Loop header
-	iaddq $-12, %rdx
+	iaddq $-9, %rdx
 	jge Unrolled_loop		# if so, goto Done:
 	jmp Two_check
 # Perform 8 * 1 loop unrolling
@@ -104,42 +104,22 @@ Npos8:
 Npos9:
 	iaddq $8, %rsi		# dst++
 
-	mrmovq (%rdi), %r10	# read val from src...
-	iaddq $8, %rdi		# src++
-	rmmovq %r10, (%rsi)	# ...and store it to dst
-	andq %r10, %r10		# val <= 0?
-	jle Npos10		# if so, goto Npos10:
-	iaddq $1, %rax		# count++
-Npos10:
-	iaddq $8, %rsi		# dst++
 
-	mrmovq (%rdi), %r10	# read val from src...
-	iaddq $8, %rdi		# src++
-	rmmovq %r10, (%rsi)	# ...and store it to dst
-	andq %r10, %r10		# val <= 0?
-	jle Npos11		# if so, goto Npos11:
-	iaddq $1, %rax		# count++
-Npos11:
-	iaddq $8, %rsi		# dst++
 
-	mrmovq (%rdi), %r10	# read val from src...
-	iaddq $8, %rdi		# src++
-	rmmovq %r10, (%rsi)	# ...and store it to dst
-	andq %r10, %r10		# val <= 0?
-	jle Npos12		# if so, goto Npos12:
-	iaddq $1, %rax		# count++
-Npos12:
-	iaddq $8, %rsi		# dst++
 
-	iaddq $-12, %rdx
+
+
+
+	iaddq $-9, %rdx
 	jge Unrolled_loop	# if len > 0, goto Unrolled_loop:
 
 
 
 Two_check:
-	iaddq $11, %rdx
+	iaddq $8, %rdx
 	jg Unrolled_loop_2
-	jmp Zero_check
+	je Loop		# if so, goto Done:
+	ret
 
 
 Unrolled_loop_2:
