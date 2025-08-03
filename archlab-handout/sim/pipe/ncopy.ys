@@ -16,7 +16,6 @@ ncopy:
 ##################################################################
 # You can modify this portion
 	# Loop header
-	xorq %rax,%rax		# count = 0;
 	andq %rdx,%rdx		# len <= 0?
 	jg Loop		# if so, goto Done:
 	ret
@@ -30,7 +29,7 @@ Loop:
 Npos:
 	iaddq $8, %rsi		# dst++
 	iaddq $-1, %rdx		# len--
-	jg Loop			# if so, goto Loop:
+	jg Loop			# if len > 0, goto Loop:
 ##################################################################
 # Do not modify the following section of code
 # Function epilogue.
