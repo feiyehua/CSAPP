@@ -91,7 +91,7 @@ Npos9:
 	iaddq $1, %rax		# count++
 Npos10:
 	iaddq $-9, %rdx
-	
+
 	jge Unrolled_loop	# if len > 0, goto Unrolled_loop:
 
 
@@ -108,27 +108,29 @@ Three_check:
 Unrolled_loop_2:
 	mrmovq (%rdi), %r10	# read val from src...
 	rmmovq %r10, (%rsi)	# ...and store it to dst
-	andq %r10, %r10		# val <= 0?
-	jle Npos1_2		# if so, goto Npos1_2:
-	iaddq $1, %rax		# count++
 Npos1_2:
 	# instructions above performs the first iteration
 
-	mrmovq 8(%rdi), %r10	# read val from src...
-	rmmovq %r10, 8(%rsi)	# ...and store it to dst
+	mrmovq 8(%rdi), %r11	# read val from src...
 	andq %r10, %r10		# val <= 0?
+	rmmovq %r11, 8(%rsi)	# ...and store it to dst
 	jle Npos2_2		# if so, goto Npos2_2:
 	iaddq $1, %rax		# count++
 Npos2_2:
 
 	mrmovq 16(%rdi), %r10	# read val from src...
+	andq %r11, %r11		# val <= 0?
 	rmmovq %r10, 16(%rsi)	# ...and store it to dst
-	andq %r10, %r10		# val <= 0?
 	jle Npos3_2		# if so, goto Npos3_2:
 	iaddq $1, %rax		# count++
 Npos3_2:
 	iaddq $24, %rsi		# dst++
 	iaddq $24, %rdi		# src++
+
+	andq %r10, %r10		# val <= 0?
+	jle Npos4_2		# if so, goto Npos2_2:
+	iaddq $1, %rax		# count++
+Npos4_2:
 
 	iaddq $-3, %rdx
 	jg Unrolled_loop_2	# if len > 0, goto Unrolled_loop_2:
