@@ -1,0 +1,44 @@
+    .pos 0
+    irmovq stack, %rsp
+    call main
+    halt
+
+main: 
+    irmovq ele1, %rdi
+    call rsum_list
+    ret
+
+rsum_list:
+# long rsum_list(list_ptr ls)
+# ls in %rdi
+    pushq %rbx
+    xorq %rax, %rax # %rax = 0
+    xorq %rcx, %rcx # %rcx = 0
+    xorq %rcx, %rdi
+    jne rec
+    jmp end
+rec:
+    mrmovq 0(%rdi),%rbx # %rbx = value
+    mrmovq 8(%rdi),%rdi
+    call rsum_list
+    addq %rbx,%rax
+end:
+    popq %rbx # Restore callee-saved registers
+    ret
+
+
+# Sample linked list
+.align 8
+ele1:
+    .quad 0x00a
+    .quad ele2
+ele2:
+    .quad 0x0b0
+    .quad ele3
+ele3:
+    .quad 0xc00
+    .quad 0
+
+
+    .pos 0x200
+stack:
