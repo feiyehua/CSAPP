@@ -126,13 +126,12 @@ Npos4_2:
 	iaddq $-2, %rdx
 	jg Unrolled_loop_2_with_offset_mod	# if len > 0, goto Unrolled_loop_2:
 
-	iaddq $16, %rsi		# dst++
-	iaddq $16, %rdi		# src++
+
 
 Zero_check:
 	andq %rdx, %rdx
 	# Perform the rest iterations
-	je Loop		# if so, goto Done:
+	je Loop_2:		# if so, goto Done:
 	ret
 
 Loop:
@@ -141,7 +140,15 @@ Loop:
 	andq %r10, %r10		# val <= 0?
 	jle Done		# if so, goto Npos:
 	iaddq $1, %rax		# count++
+	ret
 
+Loop_2:
+	mrmovq 16(%rdi), %r10	# read val from src...
+	rmmovq %r10, 16(%rsi)	# ...and store it to dst
+	andq %r10, %r10		# val <= 0?
+	jle Done		# if so, goto Npos:
+	iaddq $1, %rax		# count++
+	ret
 
 
 
