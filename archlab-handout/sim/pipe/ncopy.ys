@@ -20,8 +20,8 @@ ncopy:
 	andq %rdx,%rdx		# len <= 0?
 	irmovq $1, %r11 # %r11 = 1
 	irmovq $8, %r12 # %r12 = 8
-	jle Done		# if so, goto Done:
-
+	jg Loop		# if so, goto Done:
+	ret
 Loop:
 	mrmovq (%rdi), %r10	# read val from src...
 	addq %r12, %rdi		# src++
