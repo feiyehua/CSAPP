@@ -18,7 +18,10 @@ ncopy:
 	# Loop header
 	iaddq $-9, %rdx
 	jge Unrolled_loop		# if so, goto Done:
-	jmp Two_check
+	iaddq $8, %rdx
+	jg Unrolled_loop_2
+	je Loop		# if so, goto Loop Once:
+	ret
 # Perform 8 * 1 loop unrolling
 	
 Unrolled_loop:
