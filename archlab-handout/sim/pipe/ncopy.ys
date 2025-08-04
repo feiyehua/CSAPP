@@ -23,60 +23,61 @@ ncopy:
 	
 Unrolled_loop:
 	mrmovq (%rdi), %r10	# read val from src...
+	iaddq $72, %rdi
 	rmmovq %r10, (%rsi)	# ...and store it to dst
 Npos1:
 	# instructions above performs the first iteration
 
-	mrmovq 8(%rdi), %r11	# read val from src...
+	mrmovq -64(%rdi), %r11	# read val from src...
 	andq %r10, %r10		# val <= 0?
 	rmmovq %r11, 8(%rsi)	# ...and store it to dst
 	jle Npos2		# if so, goto Npos2:
 	iaddq $1, %rax		# count++
 Npos2:
 
-	mrmovq 16(%rdi), %r10	# read val from src...
+	mrmovq -56(%rdi), %r10	# read val from src...
 	andq %r11, %r11		# val <= 0?
 	rmmovq %r10, 16(%rsi)	# ...and store it to dst
 	jle Npos3		# if so, goto Npos3:
 	iaddq $1, %rax		# count++
 Npos3:
 
-	mrmovq 24(%rdi), %r11	# read val from src...
+	mrmovq -48(%rdi), %r11	# read val from src...
 	andq %r10, %r10		# val <= 0?
 	rmmovq %r11, 24(%rsi)	# ...and store it to dst
 	jle Npos4		# if so, goto Npos4:
 	iaddq $1, %rax		# count++
 Npos4:
 
-	mrmovq 32(%rdi), %r10	# read val from src...
+	mrmovq -40(%rdi), %r10	# read val from src...
 	andq %r11, %r11		# val <= 0?
 	rmmovq %r10, 32(%rsi)	# ...and store it to dst
 	jle Npos5		# if so, goto Npos5:
 	iaddq $1, %rax		# count++
 Npos5:
 
-	mrmovq 40(%rdi), %r11	# read val from src...
+	mrmovq -32(%rdi), %r11	# read val from src...
 	andq %r10, %r10		# val <= 0?
 	rmmovq %r11, 40(%rsi)	# ...and store it to dst
 	jle Npos6		# if so, goto Npos6:
 	iaddq $1, %rax		# count++
 Npos6:
 
-	mrmovq 48(%rdi), %r10	# read val from src...
+	mrmovq -24(%rdi), %r10	# read val from src...
 	andq %r11, %r11		# val <= 0?
 	rmmovq %r10, 48(%rsi)	# ...and store it to dst
 	jle Npos7		# if so, goto Npos7:
 	iaddq $1, %rax		# count++
 Npos7:
 
-	mrmovq 56(%rdi), %r11	# read val from src...
+	mrmovq -16(%rdi), %r11	# read val from src...
 	andq %r10, %r10		# val <= 0?
 	rmmovq %r11, 56(%rsi)	# ...and store it to dst
 	jle Npos8		# if so, goto Npos8:
 	iaddq $1, %rax		# count++
 Npos8:
 
-	mrmovq 64(%rdi), %r10	# read val from src...
+	mrmovq -8(%rdi), %r10	# read val from src...
 	andq %r11, %r11		# val <= 0?
 	rmmovq %r10, 64(%rsi)	# ...and store it to dst
 	jle Npos9		# if so, goto Npos9:
@@ -84,7 +85,6 @@ Npos8:
 
 
 Npos9:
-	iaddq $72, %rdi
 	iaddq $72, %rsi
 	andq %r10, %r10		# val <= 0?
 	jle Npos10
