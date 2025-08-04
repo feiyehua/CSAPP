@@ -101,9 +101,26 @@ Npos10:
 
 Two_check:
 	iaddq $8, %rdx
-	jg Unrolled_loop_2
-	je Loop		# if so, goto Loop Once:
+	jg Unrolled_loop_2 	# if %rdx >= 1, jump to loop_2
+	jl Done				# if %rdx == 0, goto Loop Once:
+						# else, return
+
+Loop:
+	mrmovq (%rdi), %r10	# read val from src...
+	rmmovq %r10, (%rsi)	# ...and store it to dst
+	andq %r10, %r10		# val <= 0?
+	jle Done		# if so, goto Npos:
+	iaddq $1, %rax		# count++
 	ret
+
+Final_count_update:
+	andq %r11, %r11		# val <= 0?
+	jle Npos3_2		# if so, goto Npos3_2:
+	iaddq $1, %rax		# count++
+Npos3_2:
+
+	ret
+
 
 Unrolled_loop_2_with_offset_mod:
 	iaddq $16, %rsi		# dst++
@@ -134,22 +151,11 @@ Npos2_2:
 
 Zero_check:
 	# Perform the rest iterations
-	je Loop_2:		# if so, goto Done:
+	jl Final_count_update		# if so, goto Done:
 
-	andq %r11, %r11		# val <= 0?
-	jle Npos3_2		# if so, goto Npos3_2:
-	iaddq $1, %rax		# count++
-Npos3_2:
 
-	ret
 
-Loop:
-	mrmovq (%rdi), %r10	# read val from src...
-	rmmovq %r10, (%rsi)	# ...and store it to dst
-	andq %r10, %r10		# val <= 0?
-	jle Done		# if so, goto Npos:
-	iaddq $1, %rax		# count++
-	ret
+
 
 Loop_2:
 	mrmovq (%rdi), %r10	# read val from src...
