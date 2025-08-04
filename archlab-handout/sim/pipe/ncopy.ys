@@ -129,7 +129,6 @@ Npos4_2:
 
 
 Zero_check:
-	andq %rdx, %rdx
 	# Perform the rest iterations
 	je Loop_2:		# if so, goto Done:
 	ret
