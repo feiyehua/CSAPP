@@ -104,6 +104,10 @@ Two_check:
 
 Unrolled_loop_2_with_offset_mod:
 	iaddq $16, %rsi		# dst++
+	andq %r11, %r11		# val <= 0?
+	jle Npos5_2		# if so, goto Npos5_2:
+	iaddq $1, %rax		# count++
+Npos5_2:
 Unrolled_loop_2:
 	mrmovq (%rdi), %r10	# read val from src...
 	iaddq $16, %rdi		# src++
@@ -118,10 +122,7 @@ Npos1_2:
 	iaddq $1, %rax		# count++
 Npos2_2:
 
-	andq %r11, %r11		# val <= 0?
-	jle Npos4_2		# if so, goto Npos2_2:
-	iaddq $1, %rax		# count++
-Npos4_2:
+
 
 	iaddq $-2, %rdx
 	jg Unrolled_loop_2_with_offset_mod	# if len > 0, goto Unrolled_loop_2:
@@ -131,6 +132,12 @@ Npos4_2:
 Zero_check:
 	# Perform the rest iterations
 	je Loop_2:		# if so, goto Done:
+
+	andq %r11, %r11		# val <= 0?
+	jle Npos3_2		# if so, goto Npos3_2:
+	iaddq $1, %rax		# count++
+Npos3_2:
+
 	ret
 
 Loop:
@@ -143,7 +150,11 @@ Loop:
 
 Loop_2:
 	mrmovq (%rdi), %r10	# read val from src...
+	andq %r11, %r11		# val <= 0?
 	rmmovq %r10, 16(%rsi)	# ...and store it to dst
+	jle Npos4_2		# if so, goto Npos4_2:
+	iaddq $1, %rax		# count++
+Npos4_2:
 	andq %r10, %r10		# val <= 0?
 	jle Done		# if so, goto Npos:
 	iaddq $1, %rax		# count++
