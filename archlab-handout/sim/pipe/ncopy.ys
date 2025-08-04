@@ -104,14 +104,14 @@ Two_check:
 
 Unrolled_loop_2_with_offset_mod:
 	iaddq $16, %rsi		# dst++
-	iaddq $16, %rdi		# src++
 Unrolled_loop_2:
 	mrmovq (%rdi), %r10	# read val from src...
+	iaddq $16, %rdi		# src++
 	rmmovq %r10, (%rsi)	# ...and store it to dst
 Npos1_2:
 	# instructions above performs the first iteration
 
-	mrmovq 8(%rdi), %r11	# read val from src...
+	mrmovq -8(%rdi), %r11	# read val from src...
 	andq %r10, %r10		# val <= 0?
 	rmmovq %r11, 8(%rsi)	# ...and store it to dst
 	jle Npos2_2		# if so, goto Npos2_2:
@@ -142,7 +142,7 @@ Loop:
 	ret
 
 Loop_2:
-	mrmovq 16(%rdi), %r10	# read val from src...
+	mrmovq (%rdi), %r10	# read val from src...
 	rmmovq %r10, 16(%rsi)	# ...and store it to dst
 	andq %r10, %r10		# val <= 0?
 	jle Done		# if so, goto Npos:
