@@ -1,7 +1,7 @@
 /*
  * @Author       : FeiYehua
  * @Date         : 2013-01-22 23:53:18
- * @LastEditTime : 2025-08-06 19:05:35
+ * @LastEditTime : 2025-08-06 21:49:11
  * @LastEditors  : FeiYehua
  * @Description  :
  * @FilePath     : trans.c
@@ -28,7 +28,7 @@ int is_transpose(int M, int N, int A[N][M], int B[M][N]);
  *     searches for that string to identify the transpose function to
  *     be graded.
  */
-// The cache block size is 1 << 5 = 32 byte (8 int in each), and have 32 sets in total.
+ // The cache block size is 1 << 5 = 32 byte (8 int in each), and have 32 sets in total.
 char transpose_submit_desc[] = "Transpose submission";
 void transpose_submit(int M, int N, int A[N][M], int B[M][N])
 {
@@ -111,8 +111,10 @@ void transpose_submit(int M, int N, int A[N][M], int B[M][N])
                     // We first update the first 4 rows in B chunk
                     B[i * 8 + l][i * 8 + k] = A[i * 8 + k][i * 8 + l];
                 }
-                if(k<4) B[i * 8 + k][i * 8 + k] = tmp1;
-                else B[i * 8 + k - 4][i * 8 + k] = tmp2;
+                if (k < 4)
+                    B[i * 8 + k][i * 8 + k] = tmp1;
+                else
+                    B[i * 8 + k - 4][i * 8 + k] = tmp2;
             }
             for (int k = 7; k >= 0; k--)
             {
@@ -123,15 +125,17 @@ void transpose_submit(int M, int N, int A[N][M], int B[M][N])
                         tmp1 = A[i * 8 + k][i * 8 + l];
                         continue;
                     }
-                    if (l-k == 4)
+                    if (l - k == 4)
                     {
                         tmp2 = A[i * 8 + k][i * 8 + l];
                         continue;
                     }
                     B[i * 8 + l][i * 8 + k] = A[i * 8 + k][i * 8 + l];
                 }
-                if(k>=4)B[i * 8 + k][i * 8 + k] = tmp1;
-                else B[i * 8 + k + 4][i * 8 + k] = tmp2;
+                if (k >= 4)
+                    B[i * 8 + k][i * 8 + k] = tmp1;
+                else
+                    B[i * 8 + k + 4][i * 8 + k] = tmp2;
             }
         }
     }
