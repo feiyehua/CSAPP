@@ -1,7 +1,7 @@
 /*
  * @Author       : FeiYehua
  * @Date         : 2013-01-22 23:53:18
- * @LastEditTime : 2025-08-06 15:44:24
+ * @LastEditTime : 2025-08-06 15:57:20
  * @LastEditors  : FeiYehua
  * @Description  :
  * @FilePath     : trans.c
@@ -43,9 +43,18 @@ void transpose_submit(int M, int N, int A[N][M], int B[M][N])
                 {
                     for (int l = 0; l < 8; l++)
                     {
+                        if (k == l)
+                        {
+                            continue;
+                        }
                         tmp = A[i * 8 + k][j * 8 + l];
                         B[j * 8 + l][i * 8 + k] = tmp;
                     }
+                    // We can find that there is a 0x40000 byte gap between A and B.
+                    // So, accessing elements on the diagonal causes a conflict miss.
+                    // We can defer moving the diagonal elements.
+                    tmp = A[i * 8 + k][j * 8 + k];
+                    B[j * 8 + k][i * 8 + k] = tmp;
                 }
             }
         }
