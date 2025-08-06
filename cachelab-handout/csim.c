@@ -1,7 +1,7 @@
 /*
  * @Author       : FeiYehua
  * @Date         : 2013-01-22 23:50:42
- * @LastEditTime : 2025-08-06 09:29:42
+ * @LastEditTime : 2025-08-06 10:31:56
  * @LastEditors  : FeiYehua
  * @Description  :
  * @FilePath     : csim.c
@@ -30,6 +30,24 @@ struct set
     struct line *head; // The head of line list
     int count;         // Number of cached blocks
 };
+struct set *sets;
+
+// Perform the line matching.
+// *resultPointer =
+// address of corresponding cache if the data is already cached.
+// Else, the tail of the list.
+// Return: status code
+// 0 if cache misses
+// 1 if cache hit
+int lineMatching(struct line *head, unsigned long long tag, struct line **resultPointer)
+{
+    struct line *cur = head;
+    while (cur->tag != tag && cur->next != NULL)
+    {
+        cur = cur->next;
+    }
+    return cur->tag == tag;
+}
 
 // print help message
 void printHelpMessage()
@@ -107,13 +125,15 @@ void parseCommendLineArguments(int argc, char **argv)
     }
 }
 
-void parseMemoryTrace(char *trace, char *op, long long *address, int *size)
+void parseMemoryTrace(char *trace, char *op, unsigned long long *address, int *size)
 {
-    sscanf(trace, " %c %lld,%d", op, address, size);
+    sscanf(trace, " %c %llx,%d", op, address, size);
 }
 int main(int argc, char **argv)
 {
     parseCommendLineArguments(argc, argv);
+    // Allocate memory space for sets
+    sets = malloc(sizeof(struct set) * (1ull << s));
     char *bufferPointer = malloc(sizeof(char) * 30);
     while (1)
     {
@@ -126,7 +146,16 @@ int main(int argc, char **argv)
         {
             continue;
         }
-        
+        else
+        {
+            char op;
+            unsigned long long address;
+            int size;
+            parseMemoryTrace(bufferPointer, &op, &address, &size);
+            address >>= b;                                          // Remove the block bits
+            unsigned long long index = address & ((1ull << s) - 1); // Get set index
+            unsigned long long tag = address >> s;                  // Get the tag bits
+        }
     }
 
     printSummary(0, 0, 0);
