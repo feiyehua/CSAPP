@@ -1,7 +1,7 @@
 /*
  * @Author       : FeiYehua
  * @Date         : 2013-01-22 23:50:42
- * @LastEditTime : 2025-08-06 10:31:56
+ * @LastEditTime : 2025-08-06 12:04:21
  * @LastEditors  : FeiYehua
  * @Description  :
  * @FilePath     : csim.c
@@ -16,6 +16,8 @@
 int s, E, b;
 bool v;
 FILE *fp;
+
+int numberOfHits, numberOfMisses, numberOfEvications;
 
 struct line
 {
@@ -39,14 +41,93 @@ struct set *sets;
 // Return: status code
 // 0 if cache misses
 // 1 if cache hit
-int lineMatching(struct line *head, unsigned long long tag, struct line **resultPointer)
+int lineMatching(struct set *set, unsigned long long tag, struct line **resultPointer)
 {
+    struct line *head = set->head;
     struct line *cur = head;
+    if (cur == NULL)
+    {
+        *resultPointer = NULL;
+        return 0;
+    }
     while (cur->tag != tag && cur->next != NULL)
     {
         cur = cur->next;
     }
+    *resultPointer = cur;
     return cur->tag == tag;
+}
+
+// Update the head of the set
+void updateFrequency(struct set *set, struct line *target)
+{
+    struct line *oldHead = set->head;
+    oldHead->pre = target;
+    struct line *targetPre = target->pre;
+    struct line *targetNext = target->next;
+    targetPre->next = targetNext;
+    targetNext->pre = targetPre;
+    target->next = oldHead;
+    target->pre = NULL;
+}
+
+// Evict the least frequently used cache
+void evictCache(struct line *target)
+{
+    if (target->next != NULL)
+    {
+        return;
+    }
+    struct line *tailPre = target->pre;
+    tailPre->next = NULL;
+    free(target);
+}
+
+// Insert a new cache entry
+// We always insert a cache at the head of the list
+void insertNewCache(struct set *set, unsigned long long tag)
+{
+    struct line *oldHead = set->head;
+    struct line *newLine = malloc(sizeof(struct line));
+    set->head = newLine;
+    newLine->tag = tag;
+    newLine->valid = 1;
+    newLine->next = oldHead;
+    if (oldHead != NULL)
+        oldHead->pre = newLine;
+}
+
+// Perform cache operations
+void cache(struct set *operatedSet, unsigned long long tag)
+{
+    struct line *operatedLine = NULL; // The result of line matching
+    int result = lineMatching(operatedSet, tag, &operatedLine);
+    if (result == 1)
+    {
+        // Case of cache hit
+        if (v)
+            printf("hit ");
+        numberOfHits++;
+    }
+    else
+    {
+        // Case of cache miss
+        if (v)
+            printf("miss ");
+        numberOfMisses++;
+        insertNewCache(operatedSet, tag);
+        if (operatedSet->count == E)
+        {
+            if (v)
+                printf("eviction ");
+            evictCache(operatedLine);
+            numberOfEvications++;
+        }
+        else
+        {
+            operatedSet->count++;
+        }
+    }
 }
 
 // print help message
@@ -134,11 +215,11 @@ int main(int argc, char **argv)
     parseCommendLineArguments(argc, argv);
     // Allocate memory space for sets
     sets = malloc(sizeof(struct set) * (1ull << s));
+    memset(sets, 0, sizeof(struct set) * (1ull << s));
     char *bufferPointer = malloc(sizeof(char) * 30);
     while (1)
     {
-        int cnt = fscanf(fp, "%s", bufferPointer);
-        if (cnt < 1)
+        if (fgets(bufferPointer, 29, fp) == NULL)
         {
             break;
         }
@@ -148,6 +229,12 @@ int main(int argc, char **argv)
         }
         else
         {
+            if (v)
+            {
+                int len = strlen(bufferPointer);
+                bufferPointer[len - 1] = 0;
+                printf("%s ", bufferPointer+1);
+            }
             char op;
             unsigned long long address;
             int size;
@@ -155,9 +242,19 @@ int main(int argc, char **argv)
             address >>= b;                                          // Remove the block bits
             unsigned long long index = address & ((1ull << s) - 1); // Get set index
             unsigned long long tag = address >> s;                  // Get the tag bits
+            struct set *operatedSet = &sets[index];                 // To be operated set
+            cache(operatedSet, tag);
+            if (op == 'M')
+            {
+                numberOfHits++;
+                if (v)
+                    printf("hit ");
+            }
+            if (v)
+                printf("\n");
         }
     }
 
-    printSummary(0, 0, 0);
+    printSummary(numberOfHits, numberOfMisses, numberOfEvications);
     return 0;
 }
