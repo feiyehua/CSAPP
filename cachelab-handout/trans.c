@@ -1,7 +1,7 @@
 /*
  * @Author       : FeiYehua
  * @Date         : 2013-01-22 23:53:18
- * @LastEditTime : 2025-08-06 16:53:22
+ * @LastEditTime : 2025-08-06 19:05:35
  * @LastEditors  : FeiYehua
  * @Description  :
  * @FilePath     : trans.c
@@ -59,7 +59,7 @@ void transpose_submit(int M, int N, int A[N][M], int B[M][N])
             }
         }
     }
-    else if (M == 64 && N==64)
+    else if (M == 64 && N == 64)
     {
         // In the case of M == 64 && N==64, things becomes more harsh.
         // Each row in B contains 256 byte, making a 1 0000 0000 (2) or 0x100 gap.
@@ -69,6 +69,10 @@ void transpose_submit(int M, int N, int A[N][M], int B[M][N])
         {
             for (int j = 0; j < 8; j++)
             {
+                if (i == j)
+                {
+                    continue;
+                }
                 for (int k = 0; k < 8; k++)
                 {
                     for (int l = 0; l < 4; l++)
@@ -84,6 +88,50 @@ void transpose_submit(int M, int N, int A[N][M], int B[M][N])
                         B[j * 8 + l][i * 8 + k] = A[i * 8 + k][j * 8 + l];
                     }
                 }
+            }
+        }
+        // If i == j, however, 4 same sets are used repeatedly, causing overwhelming conflict misses.
+        for (int i = 0; i < 8; i++)
+        {
+            int tmp1, tmp2;
+            for (int k = 0; k < 8; k++)
+            {
+                for (int l = 0; l < 4; l++)
+                {
+                    if (l == k)
+                    {
+                        tmp1 = A[i * 8 + k][i * 8 + l];
+                        continue;
+                    }
+                    if (k - l == 4)
+                    {
+                        tmp2 = A[i * 8 + k][i * 8 + l];
+                        continue;
+                    }
+                    // We first update the first 4 rows in B chunk
+                    B[i * 8 + l][i * 8 + k] = A[i * 8 + k][i * 8 + l];
+                }
+                if(k<4) B[i * 8 + k][i * 8 + k] = tmp1;
+                else B[i * 8 + k - 4][i * 8 + k] = tmp2;
+            }
+            for (int k = 7; k >= 0; k--)
+            {
+                for (int l = 4; l < 8; l++)
+                {
+                    if (l == k)
+                    {
+                        tmp1 = A[i * 8 + k][i * 8 + l];
+                        continue;
+                    }
+                    if (l-k == 4)
+                    {
+                        tmp2 = A[i * 8 + k][i * 8 + l];
+                        continue;
+                    }
+                    B[i * 8 + l][i * 8 + k] = A[i * 8 + k][i * 8 + l];
+                }
+                if(k>=4)B[i * 8 + k][i * 8 + k] = tmp1;
+                else B[i * 8 + k + 4][i * 8 + k] = tmp2;
             }
         }
     }
