@@ -1,7 +1,7 @@
 /*
  * @Author       : FeiYehua
  * @Date         : 2013-01-22 23:50:42
- * @LastEditTime : 2025-08-06 12:04:21
+ * @LastEditTime : 2025-08-06 12:15:36
  * @LastEditors  : FeiYehua
  * @Description  :
  * @FilePath     : csim.c
@@ -62,13 +62,20 @@ int lineMatching(struct set *set, unsigned long long tag, struct line **resultPo
 void updateFrequency(struct set *set, struct line *target)
 {
     struct line *oldHead = set->head;
+    if (oldHead == target)
+    {
+        return;
+    }
     oldHead->pre = target;
     struct line *targetPre = target->pre;
     struct line *targetNext = target->next;
-    targetPre->next = targetNext;
-    targetNext->pre = targetPre;
+    if (targetPre != NULL)
+        targetPre->next = targetNext;
+    if (targetNext != NULL)
+        targetNext->pre = targetPre;
     target->next = oldHead;
     target->pre = NULL;
+    set->head = target;
 }
 
 // Evict the least frequently used cache
@@ -108,6 +115,7 @@ void cache(struct set *operatedSet, unsigned long long tag)
         if (v)
             printf("hit ");
         numberOfHits++;
+        updateFrequency(operatedSet, operatedLine);
     }
     else
     {
@@ -233,7 +241,7 @@ int main(int argc, char **argv)
             {
                 int len = strlen(bufferPointer);
                 bufferPointer[len - 1] = 0;
-                printf("%s ", bufferPointer+1);
+                printf("%s ", bufferPointer + 1);
             }
             char op;
             unsigned long long address;
