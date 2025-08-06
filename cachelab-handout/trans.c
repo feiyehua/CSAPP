@@ -1,7 +1,7 @@
 /*
  * @Author       : FeiYehua
  * @Date         : 2013-01-22 23:53:18
- * @LastEditTime : 2025-08-06 15:57:20
+ * @LastEditTime : 2025-08-06 16:53:22
  * @LastEditors  : FeiYehua
  * @Description  :
  * @FilePath     : trans.c
@@ -55,6 +55,34 @@ void transpose_submit(int M, int N, int A[N][M], int B[M][N])
                     // We can defer moving the diagonal elements.
                     tmp = A[i * 8 + k][j * 8 + k];
                     B[j * 8 + k][i * 8 + k] = tmp;
+                }
+            }
+        }
+    }
+    else if (M == 64 && N==64)
+    {
+        // In the case of M == 64 && N==64, things becomes more harsh.
+        // Each row in B contains 256 byte, making a 1 0000 0000 (2) or 0x100 gap.
+        // So at most 4(in row)*8(in column) ints can be cached.
+
+        for (int i = 0; i < 8; i++)
+        {
+            for (int j = 0; j < 8; j++)
+            {
+                for (int k = 0; k < 8; k++)
+                {
+                    for (int l = 0; l < 4; l++)
+                    {
+                        // We first update the first 4 rows in B chunk
+                        B[j * 8 + l][i * 8 + k] = A[i * 8 + k][j * 8 + l];
+                    }
+                }
+                for (int k = 0; k < 8; k++)
+                {
+                    for (int l = 4; l < 8; l++)
+                    {
+                        B[j * 8 + l][i * 8 + k] = A[i * 8 + k][j * 8 + l];
+                    }
                 }
             }
         }
