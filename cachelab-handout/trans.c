@@ -1,7 +1,7 @@
 /*
  * @Author       : FeiYehua
  * @Date         : 2013-01-22 23:53:18
- * @LastEditTime : 2025-08-07 17:12:08
+ * @LastEditTime : 2025-08-07 19:20:43
  * @LastEditors  : FeiYehua
  * @Description  :
  * @FilePath     : trans.c
@@ -287,48 +287,48 @@ void transpose_submit(int M, int N, int A[N][M], int B[M][N])
     else
     {
         int tmp;
-        for (int i = 0; i < (N / 8); i++)
+        for (int i = 0; i < (N / 16); i++)
         {
-            for (int j = 0; j < (M / 8); j++)
+            for (int j = 0; j < (M / 16); j++)
             {
-                for (int k = 0; k < 8; k++)
+                for (int k = 0; k < 16; k++)
                 {
                     int tl = -1;
                     int tl2 = -1;
                     int tmp2;
-                    for (int l = 0; l < 8; l++)
+                    for (int l = 0; l < 16; l++)
                     {
-                        if (getSetIndex(&B[j * 8 + l][i * 8 + k]) == getSetIndex(&A[i * 8 + k][j * 8 + l]))
+                        if (getSetIndex(&B[j * 16 + l][i * 16 + k]) == getSetIndex(&A[i * 16 + k][j * 16 + l]))
                         {
                             if (tl == -1)
                             {
                                 tl = l;
-                                tmp = A[i * 8 + k][j * 8 + l];
+                                tmp = A[i * 16 + k][j * 16 + l];
                             }
                             else if (tl2 == -1)
                             {
                                 tl2 = l;
-                                tmp2 = A[i * 8 + k][j * 8 + l];
+                                tmp2 = A[i * 16 + k][j * 16 + l];
                             }
                             continue;
                         }
-                        B[j * 8 + l][i * 8 + k] = A[i * 8 + k][j * 8 + l];
+                        B[j * 16 + l][i * 16 + k] = A[i * 16 + k][j * 16 + l];
                     }
                     // We can find that there is a 0x40000 byte gap between A and B.
                     // So, accessing elements on the diagonal causes a conflict miss.
                     // We can defer moving the diagonal elements.
                     if (tl != -1)
                     {
-                        B[j * 8 + tl][i * 8 + k] = tmp;
+                        B[j * 16 + tl][i * 16 + k] = tmp;
                     }
                     if (tl2 != -1)
                     {
-                        B[j * 8 + tl2][i * 8 + k] = tmp2;
+                        B[j * 16 + tl2][i * 16 + k] = tmp2;
                     }
                 }
             }
         }
-        for (int i = (N / 8) * 8; i < N; i++)
+        for (int i = (N / 16) * 16; i < N; i++)
         {
             for (int j = 0; j < M; j++)
             {
@@ -336,9 +336,9 @@ void transpose_submit(int M, int N, int A[N][M], int B[M][N])
                 B[j][i] = tmp;
             }
         }
-        for (int i = 0; i < (N / 8) * 8; i++)
+        for (int i = 0; i < (N / 16) * 16; i++)
         {
-            for (int j = (M / 8) * 8; j < M; j++)
+            for (int j = (M / 16) * 16; j < M; j++)
             {
                 tmp = A[i][j];
                 B[j][i] = tmp;
