@@ -1,7 +1,7 @@
 /*
  * @Author       : FeiYehua
  * @Date         : 2013-01-22 23:53:18
- * @LastEditTime : 2025-08-07 16:25:04
+ * @LastEditTime : 2025-08-07 17:12:08
  * @LastEditors  : FeiYehua
  * @Description  :
  * @FilePath     : trans.c
@@ -18,6 +18,13 @@
  */
 #include <stdio.h>
 #include "cachelab.h"
+
+typedef unsigned long long u_int64_t;
+
+u_int64_t getSetIndex(int *t)
+{
+    return (((u_int64_t)(t)) >> 5) & ((1 << 5) - 1);
+}
 
 int is_transpose(int M, int N, int A[N][M], int B[M][N]);
 
@@ -249,7 +256,6 @@ void transpose_submit(int M, int N, int A[N][M], int B[M][N])
                 B[j * 8 + k][i * 8 + k - 4] = tmp2;
             }
 
-            
             for (int k = 0; k < 4; k++)
             {
                 int l = 0;
@@ -275,6 +281,67 @@ void transpose_submit(int M, int N, int A[N][M], int B[M][N])
                 tmp = B[j * 8 + l][i * 8 + k + 4];
                 B[j * 8 + l][i * 8 + k + 4] = B[j * 8 + l + 5][i * 8 + k];
                 B[j * 8 + l + 5][i * 8 + k] = tmp;
+            }
+        }
+    }
+    else
+    {
+        int tmp;
+        for (int i = 0; i < (N / 8); i++)
+        {
+            for (int j = 0; j < (M / 8); j++)
+            {
+                for (int k = 0; k < 8; k++)
+                {
+                    int tl = -1;
+                    int tl2 = -1;
+                    int tmp2;
+                    for (int l = 0; l < 8; l++)
+                    {
+                        if (getSetIndex(&B[j * 8 + l][i * 8 + k]) == getSetIndex(&A[i * 8 + k][j * 8 + l]))
+                        {
+                            if (tl == -1)
+                            {
+                                tl = l;
+                                tmp = A[i * 8 + k][j * 8 + l];
+                            }
+                            else if (tl2 == -1)
+                            {
+                                tl2 = l;
+                                tmp2 = A[i * 8 + k][j * 8 + l];
+                            }
+                            continue;
+                        }
+                        B[j * 8 + l][i * 8 + k] = A[i * 8 + k][j * 8 + l];
+                    }
+                    // We can find that there is a 0x40000 byte gap between A and B.
+                    // So, accessing elements on the diagonal causes a conflict miss.
+                    // We can defer moving the diagonal elements.
+                    if (tl != -1)
+                    {
+                        B[j * 8 + tl][i * 8 + k] = tmp;
+                    }
+                    if (tl2 != -1)
+                    {
+                        B[j * 8 + tl2][i * 8 + k] = tmp2;
+                    }
+                }
+            }
+        }
+        for (int i = (N / 8) * 8; i < N; i++)
+        {
+            for (int j = 0; j < M; j++)
+            {
+                tmp = A[i][j];
+                B[j][i] = tmp;
+            }
+        }
+        for (int i = 0; i < (N / 8) * 8; i++)
+        {
+            for (int j = (M / 8) * 8; j < M; j++)
+            {
+                tmp = A[i][j];
+                B[j][i] = tmp;
             }
         }
     }
