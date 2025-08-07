@@ -1,7 +1,7 @@
 /*
  * @Author       : FeiYehua
  * @Date         : 2013-01-22 23:53:18
- * @LastEditTime : 2025-08-07 15:26:19
+ * @LastEditTime : 2025-08-07 16:25:04
  * @LastEditors  : FeiYehua
  * @Description  :
  * @FilePath     : trans.c
@@ -160,49 +160,121 @@ void transpose_submit(int M, int N, int A[N][M], int B[M][N])
         // If i == j, however, 4 same sets are used repeatedly, causing overwhelming conflict misses.
         for (int i = 0; i < 8; i++)
         {
+            // Use the same update method as none-diagonal cases, but with special care dealing with the diagnonal elements
             int tmp1, tmp2;
-            for (int k = 0; k < 8; k++)
+            int j = i;
+            for (int k = 0; k < 4; k++)
             {
                 for (int l = 0; l < 4; l++)
                 {
                     if (l == k)
                     {
-                        tmp1 = A[i * 8 + k][i * 8 + l];
-                        continue;
-                    }
-                    if (k - l == 4)
-                    {
-                        tmp2 = A[i * 8 + k][i * 8 + l];
+                        tmp1 = A[i * 8 + k][j * 8 + l];
                         continue;
                     }
                     // We first update the first 4 rows in B chunk
-                    B[i * 8 + l][i * 8 + k] = A[i * 8 + k][i * 8 + l];
+                    B[j * 8 + l][i * 8 + k] = A[i * 8 + k][j * 8 + l];
                 }
-                if (k < 4)
-                    B[i * 8 + k][i * 8 + k] = tmp1;
-                else
-                    B[i * 8 + k - 4][i * 8 + k] = tmp2;
+
+                for (int l = 0; l < 4; l++)
+                {
+                    if (k + l == 1 || k + l == 5)
+                    {
+                        // Conflict misses cases
+                        tmp2 = A[i * 8 + k][j * 8 + l + 4];
+                        continue;
+                    }
+                    // We put the data in B with a special order to prevent potential conflict misses when moving
+                    if (l == 0)
+                    {
+                        B[j * 8 + 1][i * 8 + k + 4] = A[i * 8 + k][j * 8 + l + 4];
+                    }
+                    else if (l == 1)
+                    {
+                        B[j * 8 + 0][i * 8 + k + 4] = A[i * 8 + k][j * 8 + l + 4];
+                    }
+                    else if (l == 2)
+                    {
+                        B[j * 8 + 3][i * 8 + k + 4] = A[i * 8 + k][j * 8 + l + 4];
+                    }
+                    else
+                    {
+                        B[j * 8 + 2][i * 8 + k + 4] = A[i * 8 + k][j * 8 + l + 4];
+                    }
+                }
+                B[j * 8 + k][i * 8 + k] = tmp1;
+                B[j * 8 + k][i * 8 + k + 4] = tmp2;
             }
-            for (int k = 7; k >= 0; k--)
+
+            for (int k = 4; k < 8; k++)
             {
                 for (int l = 4; l < 8; l++)
                 {
                     if (l == k)
                     {
-                        tmp1 = A[i * 8 + k][i * 8 + l];
+                        tmp1 = A[i * 8 + k][j * 8 + l];
                         continue;
                     }
-                    if (l - k == 4)
-                    {
-                        tmp2 = A[i * 8 + k][i * 8 + l];
-                        continue;
-                    }
-                    B[i * 8 + l][i * 8 + k] = A[i * 8 + k][i * 8 + l];
+                    // We first update the first 4 rows in B chunk
+                    B[j * 8 + l][i * 8 + k] = A[i * 8 + k][j * 8 + l];
                 }
-                if (k >= 4)
-                    B[i * 8 + k][i * 8 + k] = tmp1;
-                else
-                    B[i * 8 + k + 4][i * 8 + k] = tmp2;
+
+                for (int l = 0; l < 4; l++)
+                {
+                    if (k + l == 9 || k + l == 5)
+                    {
+                        // Conflict misses cases
+                        tmp2 = A[i * 8 + k][j * 8 + l];
+                        continue;
+                    }
+                    // We put the data in B with a special order to prevent potential conflict misses when moving
+                    if (l == 0)
+                    {
+                        B[j * 8 + 5][i * 8 + k - 4] = A[i * 8 + k][j * 8 + l];
+                    }
+                    else if (l == 1)
+                    {
+                        B[j * 8 + 4][i * 8 + k - 4] = A[i * 8 + k][j * 8 + l];
+                    }
+                    else if (l == 2)
+                    {
+                        B[j * 8 + 7][i * 8 + k - 4] = A[i * 8 + k][j * 8 + l];
+                    }
+                    else
+                    {
+                        B[j * 8 + 6][i * 8 + k - 4] = A[i * 8 + k][j * 8 + l];
+                    }
+                }
+                B[j * 8 + k][i * 8 + k] = tmp1;
+                B[j * 8 + k][i * 8 + k - 4] = tmp2;
+            }
+
+            
+            for (int k = 0; k < 4; k++)
+            {
+                int l = 0;
+                // Swap the 1st and 4th, 3rd and 6th rows
+                int tmp = 0;
+                tmp = B[j * 8 + l + 1][i * 8 + k + 4];
+                B[j * 8 + l + 1][i * 8 + k + 4] = B[j * 8 + l + 4][i * 8 + k];
+                B[j * 8 + l + 4][i * 8 + k] = tmp;
+                l = 2;
+                tmp = B[j * 8 + l + 1][i * 8 + k + 4];
+                B[j * 8 + l + 1][i * 8 + k + 4] = B[j * 8 + l + 4][i * 8 + k];
+                B[j * 8 + l + 4][i * 8 + k] = tmp;
+            }
+            for (int k = 0; k < 4; k++)
+            {
+                int l = 0;
+                // Swap the 0th and 5th, 2nd and 7th rows
+                int tmp = 0;
+                tmp = B[j * 8 + l][i * 8 + k + 4];
+                B[j * 8 + l][i * 8 + k + 4] = B[j * 8 + l + 5][i * 8 + k];
+                B[j * 8 + l + 5][i * 8 + k] = tmp;
+                l = 2;
+                tmp = B[j * 8 + l][i * 8 + k + 4];
+                B[j * 8 + l][i * 8 + k + 4] = B[j * 8 + l + 5][i * 8 + k];
+                B[j * 8 + l + 5][i * 8 + k] = tmp;
             }
         }
     }
