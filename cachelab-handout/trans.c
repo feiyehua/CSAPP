@@ -1,7 +1,7 @@
 /*
  * @Author       : FeiYehua
  * @Date         : 2013-01-22 23:53:18
- * @LastEditTime : 2025-08-06 21:49:11
+ * @LastEditTime : 2025-08-07 15:26:19
  * @LastEditors  : FeiYehua
  * @Description  :
  * @FilePath     : trans.c
@@ -28,7 +28,7 @@ int is_transpose(int M, int N, int A[N][M], int B[M][N]);
  *     searches for that string to identify the transpose function to
  *     be graded.
  */
- // The cache block size is 1 << 5 = 32 byte (8 int in each), and have 32 sets in total.
+// The cache block size is 1 << 5 = 32 byte (8 int in each), and have 32 sets in total.
 char transpose_submit_desc[] = "Transpose submission";
 void transpose_submit(int M, int N, int A[N][M], int B[M][N])
 {
@@ -73,20 +73,87 @@ void transpose_submit(int M, int N, int A[N][M], int B[M][N])
                 {
                     continue;
                 }
-                for (int k = 0; k < 8; k++)
+                for (int k = 0; k < 4; k++)
                 {
                     for (int l = 0; l < 4; l++)
                     {
                         // We first update the first 4 rows in B chunk
                         B[j * 8 + l][i * 8 + k] = A[i * 8 + k][j * 8 + l];
                     }
+                    // We can try to make full use of the cached elements of A array.
+                    // We can move the last 4 elements in the firtst 4 rows in A to the last 4 columns in the first 4 rows in B array,
+                    // Then move them to the correct places afterwards.
+                    // In total, this takes us 18 misses to perform a 8*8 chunk transpose.
+                    for (int l = 0; l < 4; l++)
+                    {
+                        // We put the data in B with a special order to prevent potential conflict misses when moving
+                        if (l == 0)
+                        {
+                            B[j * 8 + 1][i * 8 + k + 4] = A[i * 8 + k][j * 8 + l + 4];
+                        }
+                        else if (l == 1)
+                        {
+                            B[j * 8 + 0][i * 8 + k + 4] = A[i * 8 + k][j * 8 + l + 4];
+                        }
+                        else if (l == 2)
+                        {
+                            B[j * 8 + 3][i * 8 + k + 4] = A[i * 8 + k][j * 8 + l + 4];
+                        }
+                        else
+                        {
+                            B[j * 8 + 2][i * 8 + k + 4] = A[i * 8 + k][j * 8 + l + 4];
+                        }
+                    }
                 }
-                for (int k = 7; k >= 0; k--)
+                for (int k = 4; k < 8; k++)
+                {
+                    // Put the 4th and 6th rows into cache, poping the 0th and 2nd row out
+                    int l = 0;
+                    B[j * 8 + l + 4][i * 8 + k - 4] = A[i * 8 + k][j * 8 + l + 1];
+                    l = 2;
+                    B[j * 8 + l + 4][i * 8 + k - 4] = A[i * 8 + k][j * 8 + l + 1];
+                }
+                for (int k = 0; k < 4; k++)
+                {
+                    int l = 0;
+                    // Swap the 1st and 4th, 3rd and 6th rows
+                    int tmp = 0;
+                    tmp = B[j * 8 + l + 1][i * 8 + k + 4];
+                    B[j * 8 + l + 1][i * 8 + k + 4] = B[j * 8 + l + 4][i * 8 + k];
+                    B[j * 8 + l + 4][i * 8 + k] = tmp;
+                    l = 2;
+                    tmp = B[j * 8 + l + 1][i * 8 + k + 4];
+                    B[j * 8 + l + 1][i * 8 + k + 4] = B[j * 8 + l + 4][i * 8 + k];
+                    B[j * 8 + l + 4][i * 8 + k] = tmp;
+                }
+                for (int k = 4; k < 8; k++)
+                {
+                    // Put the 5th and 7th rows into cache, poping the 1th and 3rd row out
+                    int l = 1;
+                    B[j * 8 + l + 4][i * 8 + k - 4] = A[i * 8 + k][j * 8 + l - 1];
+                    l = 3;
+                    B[j * 8 + l + 4][i * 8 + k - 4] = A[i * 8 + k][j * 8 + l - 1];
+                }
+                for (int k = 4; k < 8; k++)
                 {
                     for (int l = 4; l < 8; l++)
                     {
+                        // Update the bottomleft elements in B
                         B[j * 8 + l][i * 8 + k] = A[i * 8 + k][j * 8 + l];
                     }
+                }
+                for (int k = 0; k < 4; k++)
+                {
+                    int l = 0;
+                    // Swap the 0th and 5th, 2nd and 7th rows
+                    int tmp = 0;
+                    tmp = B[j * 8 + l][i * 8 + k + 4];
+                    B[j * 8 + l][i * 8 + k + 4] = B[j * 8 + l + 5][i * 8 + k];
+                    B[j * 8 + l + 5][i * 8 + k] = tmp;
+                    l = 2;
+                    tmp = B[j * 8 + l][i * 8 + k + 4];
+                    B[j * 8 + l][i * 8 + k + 4] = B[j * 8 + l + 5][i * 8 + k];
+                    B[j * 8 + l + 5][i * 8 + k] = tmp;
                 }
             }
         }
