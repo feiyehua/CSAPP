@@ -1,7 +1,7 @@
 /*
  * @Author       : FeiYehua
  * @Date         : 2025-08-11 11:07:02
- * @LastEditTime : 2025-08-11 15:03:46
+ * @LastEditTime : 2025-08-11 16:15:03
  * @LastEditors  : FeiYehua
  * @Description  :
  * @FilePath     : builtin.c
@@ -19,8 +19,6 @@
 
 #define MAXLINE 1024 /* max line size */
 #define MAXARGS 128  /* max args on a command line */
-
-extern struct job_t jobs[MAXJOBS];
 
 /*
  * parseline - Parse the command line and build the argv array.
@@ -115,30 +113,36 @@ void eval(char *cmdline)
         // fork and execve
         pid_t pid = Fork();
         Signal(SIGCHLD, SIG_IGN);
+        sigset_t mask_sigchld, prev_mask, mask_all;
+        Sigaddset(&mask_sigchld, SIGCHLD);
+        Sigfillset(&mask_all);
+        Sigprocmask(SIG_BLOCK, &mask_sigchld, &prev_mask); // Block SIGCHLD in process
         if (pid == 0)
         {
             // Child process
-            Setpgid(0, 0);               // Create a new process group
-            Signal(SIGCHLD, SIG_DFL);    // Childprocess should have normal signal handler
-            Execve(argv[0], argv, NULL); // Execute command
+            Setpgid(0, 0);                              // Create a new process group
+            Sigprocmask(SIG_SETMASK, &prev_mask, NULL); // Childprocess should have normal signal handler
+            Execve(argv[0], argv, NULL);                // Execute command
         }
         else
         {
             if (!bg)
             {
                 // Not a background task, wait for the process to terminate
-                addjob(jobs, pid, FG, cmdline);   // Add job as a foreground task
-                Signal(SIGCHLD, sigchld_handler); // Re-install the SIGCHLD handler
-                waitfg(pid);                      // Wait until foreground task finishes
+                Sigprocmask(SIG_BLOCK, &mask_all, NULL);    // Block all signals for job operations
+                addjob(jobs, pid, FG, cmdline);             // Add job as a foreground task
+                Sigprocmask(SIG_SETMASK, &prev_mask, NULL); // Unblock SIGCHLD
+                waitfg(pid);                                // Wait until foreground task finishes
             }
             else
             {
-                addjob(jobs, pid, BG, cmdline); // Add job as a background task
+                Sigprocmask(SIG_BLOCK, &mask_all, NULL); // Block all signals for job operations
+                addjob(jobs, pid, BG, cmdline);          // Add job as a background task
                 char *line = malloc(MAXLINE * sizeof(char));
                 sprintf(line, "[%d] (%d) %s", pid2jid(pid), pid, cmdline);
-                Sio_puts(line);                   // Print job info
-                free(line);                       // Free used space
-                Signal(SIGCHLD, sigchld_handler); // Re-install the SIGCHLD handler
+                Sio_puts(line);                             // Print job info
+                free(line);                                 // Free used space
+                Sigprocmask(SIG_SETMASK, &prev_mask, NULL); // Unblock SIGCHLD
             }
         }
     }
