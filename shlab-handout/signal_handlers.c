@@ -1,7 +1,7 @@
 /*
  * @Author       : FeiYehua
  * @Date         : 2025-08-11 10:56:21
- * @LastEditTime : 2025-08-11 17:27:23
+ * @LastEditTime : 2025-08-11 17:36:53
  * @LastEditors  : FeiYehua
  * @Description  :
  * @FilePath     : signal_handlers.c
@@ -76,7 +76,7 @@ void sigint_handler(int sig)
     pid_t pid = fgpid(jobs); // Get the foreground job pid
     if (pid != 0)
     {
-        Kill(pid, SIGINT); // Sent SIGINT to current foreground job (and the other processes in the process group)
+        Kill(-pid, SIGINT); // Sent SIGINT to current foreground job (and the other processes in the process group)
         char *buf = malloc(MAXLINE * sizeof(char));
         sprintf(buf, "Job [%d] (%d) terminated by signal 2\n", pid2jid(pid), pid);
         Sio_puts(buf);

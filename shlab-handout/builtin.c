@@ -1,7 +1,7 @@
 /*
  * @Author       : FeiYehua
  * @Date         : 2025-08-11 11:07:02
- * @LastEditTime : 2025-08-11 17:32:41
+ * @LastEditTime : 2025-08-11 17:39:12
  * @LastEditors  : FeiYehua
  * @Description  :
  * @FilePath     : builtin.c
@@ -195,7 +195,7 @@ void do_bgfg(char **argv)
         sigset_t prev_mask, mask_all;
         Sigfillset(&mask_all); // Mask all signals
         Sigprocmask(SIG_BLOCK, &mask_all, &prev_mask);
-        kill(job->pid, SIGCONT); // Continue the execution of this process
+        kill(-(job->pid), SIGCONT); // Continue the execution of this process
         job->state = BG;
         printf("[%d] (%d) %s\n", job->jid, job->pid, job->cmdline);
         Sigprocmask(SIG_SETMASK, &prev_mask, NULL);
@@ -206,7 +206,7 @@ void do_bgfg(char **argv)
         Sigfillset(&mask_all); // Mask all signals
         Sigprocmask(SIG_BLOCK, &mask_all, &prev_mask);
         if (job->state == ST)
-            kill(job->pid, SIGCONT); // Continue the execution of this process
+            kill(-(job->pid), SIGCONT); // Continue the execution of this process
         job->state = FG;
         Sigprocmask(SIG_SETMASK, &prev_mask, NULL);
         waitfg(job->pid);
