@@ -1,7 +1,7 @@
 /*
  * @Author       : FeiYehua
  * @Date         : 2025-08-11 11:07:02
- * @LastEditTime : 2025-08-11 17:53:58
+ * @LastEditTime : 2025-08-11 18:41:43
  * @LastEditors  : FeiYehua
  * @Description  :
  * @FilePath     : builtin.c
@@ -132,8 +132,8 @@ void eval(char *cmdline)
                     // Not a background task, wait for the process to terminate
                     Sigprocmask(SIG_BLOCK, &mask_all, NULL);    // Block all signals for job operations
                     addjob(jobs, pid, FG, cmdline);             // Add job as a foreground task
-                    Sigprocmask(SIG_SETMASK, &prev_mask, NULL); // Unblock SIGCHLD
                     waitfg(pid);                                // Wait until foreground task finishes
+                    Sigprocmask(SIG_SETMASK, &prev_mask, NULL); // Unblock SIGCHLD
                 }
                 else
                 {
@@ -234,8 +234,8 @@ void do_bgfg(char **argv)
         if (job->state == ST)
             kill(-(job->pid), SIGCONT); // Continue the execution of this process
         job->state = FG;
-        Sigprocmask(SIG_SETMASK, &prev_mask, NULL);
         waitfg(job->pid);
+        Sigprocmask(SIG_SETMASK, &prev_mask, NULL);
     }
     return;
 }
@@ -245,10 +245,11 @@ void do_bgfg(char **argv)
  */
 void waitfg(pid_t pid)
 {
-    int status = 0;
-    while (getjobpid(jobs, pid) != NULL && getjobpid(jobs, pid)->state == FG) // Wait until the job finishes, and the handler reap the process
+    sigset_t mask;
+    Sigemptyset(&mask);
+    while (fgpid(jobs)==pid) // Wait until the job finishes, and the handler reap the process
     {
-        Sleep(1);
+        Sigsuspend(&mask);
     }
     return;
 }
