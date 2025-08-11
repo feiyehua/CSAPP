@@ -1,7 +1,7 @@
 /*
  * @Author       : FeiYehua
  * @Date         : 2025-08-11 11:07:02
- * @LastEditTime : 2025-08-11 16:15:03
+ * @LastEditTime : 2025-08-11 17:09:52
  * @LastEditors  : FeiYehua
  * @Description  :
  * @FilePath     : builtin.c
@@ -112,7 +112,6 @@ void eval(char *cmdline)
     {
         // fork and execve
         pid_t pid = Fork();
-        Signal(SIGCHLD, SIG_IGN);
         sigset_t mask_sigchld, prev_mask, mask_all;
         Sigaddset(&mask_sigchld, SIGCHLD);
         Sigfillset(&mask_all);
@@ -188,6 +187,9 @@ void do_bgfg(char **argv)
 void waitfg(pid_t pid)
 {
     int status = 0;
-    Waitpid(pid, &status, WUNTRACED);
+    while (getjobpid(jobs, pid) != NULL && getjobpid(jobs,pid)->state == FG) // Wait until the job finishes, and the handler reap the process
+    {
+        Sleep(1);
+    }
     return;
 }

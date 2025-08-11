@@ -9,7 +9,7 @@ TSH = $(BUILDDIR)/tsh
 TSHREF = ./tshref
 TSHARGS = "-p"
 CC = gcc
-CFLAGS = -Wall -O2
+CFLAGS = -Wall -O2 -g
 FILES = $(TSH) $(BUILDDIR)/myspin $(BUILDDIR)/mysplit $(BUILDDIR)/mystop $(BUILDDIR)/myint
 
 all: $(FILES)

@@ -1,3 +1,5 @@
 build/
 test/
 my*.c
+tshref.out
+.vscode
