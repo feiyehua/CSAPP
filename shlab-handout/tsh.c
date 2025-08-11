@@ -14,6 +14,7 @@
 #include <errno.h>
 
 #include "wrapper.h"
+#include "csapp.h"
 
 /* Misc manifest constants */
 #define MAXLINE 1024   /* max line size */
@@ -131,14 +132,6 @@ void usage(void)
     exit(1);
 }
 
-/*
- * app_error - application-style error routine
- */
-void app_error(char *msg)
-{
-    fprintf(stdout, "%s\n", msg);
-    exit(1);
-}
 
 /*
  * sigquit_handler - The driver program can gracefully terminate the

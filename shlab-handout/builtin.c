@@ -1,7 +1,7 @@
 /*
  * @Author       : FeiYehua
  * @Date         : 2025-08-11 11:07:02
- * @LastEditTime : 2025-08-11 11:45:27
+ * @LastEditTime : 2025-08-11 15:03:46
  * @LastEditors  : FeiYehua
  * @Description  :
  * @FilePath     : builtin.c
@@ -11,7 +11,10 @@
 #include <string.h>
 #include <sys/types.h>
 #include <stdlib.h>
+#include <unistd.h>
+#include "csapp.h"
 #include "builtin.h"
+#include "signal_handers.h"
 #include "jobs.h"
 
 #define MAXLINE 1024 /* max line size */
@@ -110,8 +113,36 @@ void eval(char *cmdline)
     if (!isBuiltin) // Not a builtin command
     {
         // fork and execve
+        pid_t pid = Fork();
+        Signal(SIGCHLD, SIG_IGN);
+        if (pid == 0)
+        {
+            // Child process
+            Setpgid(0, 0);               // Create a new process group
+            Signal(SIGCHLD, SIG_DFL);    // Childprocess should have normal signal handler
+            Execve(argv[0], argv, NULL); // Execute command
+        }
+        else
+        {
+            if (!bg)
+            {
+                // Not a background task, wait for the process to terminate
+                addjob(jobs, pid, FG, cmdline);   // Add job as a foreground task
+                Signal(SIGCHLD, sigchld_handler); // Re-install the SIGCHLD handler
+                waitfg(pid);                      // Wait until foreground task finishes
+            }
+            else
+            {
+                addjob(jobs, pid, BG, cmdline); // Add job as a background task
+                char *line = malloc(MAXLINE * sizeof(char));
+                sprintf(line, "[%d] (%d) %s", pid2jid(pid), pid, cmdline);
+                Sio_puts(line);                   // Print job info
+                free(line);                       // Free used space
+                Signal(SIGCHLD, sigchld_handler); // Re-install the SIGCHLD handler
+            }
+        }
     }
-    free(argv);
+    free(argv); // Free memory of argv
     return;
 }
 
@@ -152,5 +183,7 @@ void do_bgfg(char **argv)
  */
 void waitfg(pid_t pid)
 {
+    int status = 0;
+    Waitpid(pid, &status, WUNTRACED);
     return;
 }

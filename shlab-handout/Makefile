@@ -19,7 +19,7 @@ $(BUILDDIR):
 	mkdir -p $(BUILDDIR)
 
 # Build rules
-$(BUILDDIR)/tsh: tsh.c signal_handlers.c builtin.c jobs.c | $(BUILDDIR)
+$(BUILDDIR)/tsh: tsh.c signal_handlers.c builtin.c jobs.c csapp.c | $(BUILDDIR)
 	$(CC) $(CFLAGS) -o $@ $^
 
 $(BUILDDIR)/myspin: myspin.c | $(BUILDDIR)
