@@ -1,7 +1,7 @@
 /*
  * @Author       : FeiYehua
  * @Date         : 2025-08-11 11:07:02
- * @LastEditTime : 2025-08-11 17:09:52
+ * @LastEditTime : 2025-08-11 17:32:41
  * @LastEditors  : FeiYehua
  * @Description  :
  * @FilePath     : builtin.c
@@ -178,6 +178,39 @@ int builtin_cmd(char **argv)
  */
 void do_bgfg(char **argv)
 {
+    int id = atoi(argv[1] + 1);
+    // Get the corresponding job
+    struct job_t *job = getjobjid(jobs, id);
+    if (job == NULL)
+    {
+        job = getjobpid(jobs, id);
+    }
+    if (job == NULL)
+    {
+        printf("%s: No such job\n", argv[1]);
+        return;
+    }
+    if (strcmp(argv[0], "bg") == 0 && job->state == ST) // Changing a stopped background job to a running background job
+    {
+        sigset_t prev_mask, mask_all;
+        Sigfillset(&mask_all); // Mask all signals
+        Sigprocmask(SIG_BLOCK, &mask_all, &prev_mask);
+        kill(job->pid, SIGCONT); // Continue the execution of this process
+        job->state = BG;
+        printf("[%d] (%d) %s\n", job->jid, job->pid, job->cmdline);
+        Sigprocmask(SIG_SETMASK, &prev_mask, NULL);
+    }
+    if (strcmp(argv[0], "fg") == 0 && (job->state == BG || job->state == ST))
+    {
+        sigset_t prev_mask, mask_all;
+        Sigfillset(&mask_all); // Mask all signals
+        Sigprocmask(SIG_BLOCK, &mask_all, &prev_mask);
+        if (job->state == ST)
+            kill(job->pid, SIGCONT); // Continue the execution of this process
+        job->state = FG;
+        Sigprocmask(SIG_SETMASK, &prev_mask, NULL);
+        waitfg(job->pid);
+    }
     return;
 }
 
@@ -187,7 +220,7 @@ void do_bgfg(char **argv)
 void waitfg(pid_t pid)
 {
     int status = 0;
-    while (getjobpid(jobs, pid) != NULL && getjobpid(jobs,pid)->state == FG) // Wait until the job finishes, and the handler reap the process
+    while (getjobpid(jobs, pid) != NULL && getjobpid(jobs, pid)->state == FG) // Wait until the job finishes, and the handler reap the process
     {
         Sleep(1);
     }

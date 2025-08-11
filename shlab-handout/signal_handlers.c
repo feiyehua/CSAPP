@@ -1,7 +1,7 @@
 /*
  * @Author       : FeiYehua
  * @Date         : 2025-08-11 10:56:21
- * @LastEditTime : 2025-08-11 17:01:33
+ * @LastEditTime : 2025-08-11 17:27:23
  * @LastEditors  : FeiYehua
  * @Description  :
  * @FilePath     : signal_handlers.c
@@ -103,7 +103,7 @@ void sigtstp_handler(int sig)
     {
         Kill(-pid, SIGTSTP); // Sent SIGTSTP to current foreground job (and the other processes in the process group)
         char *buf = malloc(MAXLINE * sizeof(char));
-        sprintf(buf, "Job [%d] (%d) terminated by signal 18\n", pid2jid(pid), pid);
+        sprintf(buf, "Job [%d] (%d) stopped by signal 20\n", pid2jid(pid), pid);
         Sio_puts(buf);
         free(buf);
     }
