@@ -1,7 +1,7 @@
 /*
  * @Author       : FeiYehua
  * @Date         : 2025-08-11 11:07:02
- * @LastEditTime : 2025-08-11 11:11:08
+ * @LastEditTime : 2025-08-11 11:45:27
  * @LastEditors  : FeiYehua
  * @Description  :
  * @FilePath     : builtin.c
@@ -10,23 +10,14 @@
 
 #include <string.h>
 #include <sys/types.h>
-#define MAXLINE 1024 /* max line size */
+#include <stdlib.h>
+#include "builtin.h"
+#include "jobs.h"
 
-/*
- * eval - Evaluate the command line that the user has just typed in
- *
- * If the user has requested a built-in command (quit, jobs, bg or fg)
- * then execute it immediately. Otherwise, fork a child process and
- * run the job in the context of the child. If the job is running in
- * the foreground, wait for it to terminate and then return.  Note:
- * each child process must have a unique process group ID so that our
- * background children don't receive SIGINT (SIGTSTP) from the kernel
- * when we type ctrl-c (ctrl-z) at the keyboard.
- */
-void eval(char *cmdline)
-{
-    return;
-}
+#define MAXLINE 1024 /* max line size */
+#define MAXARGS 128  /* max args on a command line */
+
+extern struct job_t jobs[MAXJOBS];
 
 /*
  * parseline - Parse the command line and build the argv array.
@@ -92,11 +83,59 @@ int parseline(const char *cmdline, char **argv)
 }
 
 /*
+ * eval - Evaluate the command line that the user has just typed in
+ *
+ * If the user has requested a built-in command (quit, jobs, bg or fg)
+ * then execute it immediately. Otherwise, fork a child process and
+ * run the job in the context of the child. If the job is running in
+ * the foreground, wait for it to terminate and then return.  Note:
+ * each child process must have a unique process group ID so that our
+ * background children don't receive SIGINT (SIGTSTP) from the kernel
+ * when we type ctrl-c (ctrl-z) at the keyboard.
+ */
+void eval(char *cmdline)
+{
+    char **argv = malloc(sizeof(char *) * MAXARGS);
+    // deterimine if the command need to be executed in foreground or background
+    // bg = 1: background or empty line
+    // bg = 0: foreground
+    int bg = parseline(cmdline, argv);
+    if (argv[0] == NULL)
+    {
+        // Empty line
+        free(argv);
+        return;
+    }
+    int isBuiltin = builtin_cmd(argv);
+    if (!isBuiltin) // Not a builtin command
+    {
+        // fork and execve
+    }
+    free(argv);
+    return;
+}
+
+/*
  * builtin_cmd - If the user has typed a built-in command then execute
  *    it immediately.
  */
 int builtin_cmd(char **argv)
 {
+    if (strcmp(argv[0], "quit") == 0)
+    {
+        // quit command
+        exit(0);
+    }
+    if (strcmp(argv[0], "jobs") == 0)
+    {
+        listjobs(jobs);
+        return 1;
+    }
+    if (strcmp(argv[0], "bg") == 0 || strcmp(argv[0], "fg") == 0)
+    {
+        do_bgfg(argv);
+        return 1;
+    }
     return 0; /* not a builtin command */
 }
 
