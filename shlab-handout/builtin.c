@@ -1,7 +1,7 @@
 /*
  * @Author       : FeiYehua
  * @Date         : 2025-08-11 11:07:02
- * @LastEditTime : 2025-08-11 17:39:12
+ * @LastEditTime : 2025-08-11 17:53:58
  * @LastEditors  : FeiYehua
  * @Description  :
  * @FilePath     : builtin.c
@@ -110,39 +110,46 @@ void eval(char *cmdline)
     int isBuiltin = builtin_cmd(argv);
     if (!isBuiltin) // Not a builtin command
     {
-        // fork and execve
-        pid_t pid = Fork();
-        sigset_t mask_sigchld, prev_mask, mask_all;
-        Sigaddset(&mask_sigchld, SIGCHLD);
-        Sigfillset(&mask_all);
-        Sigprocmask(SIG_BLOCK, &mask_sigchld, &prev_mask); // Block SIGCHLD in process
-        if (pid == 0)
+        if (fopen(argv[0], "r") != NULL)
         {
-            // Child process
-            Setpgid(0, 0);                              // Create a new process group
-            Sigprocmask(SIG_SETMASK, &prev_mask, NULL); // Childprocess should have normal signal handler
-            Execve(argv[0], argv, NULL);                // Execute command
-        }
-        else
-        {
-            if (!bg)
+            // fork and execve
+            pid_t pid = Fork();
+            sigset_t mask_sigchld, prev_mask, mask_all;
+            Sigaddset(&mask_sigchld, SIGCHLD);
+            Sigfillset(&mask_all);
+            Sigprocmask(SIG_BLOCK, &mask_sigchld, &prev_mask); // Block SIGCHLD in process
+            if (pid == 0)
             {
-                // Not a background task, wait for the process to terminate
-                Sigprocmask(SIG_BLOCK, &mask_all, NULL);    // Block all signals for job operations
-                addjob(jobs, pid, FG, cmdline);             // Add job as a foreground task
-                Sigprocmask(SIG_SETMASK, &prev_mask, NULL); // Unblock SIGCHLD
-                waitfg(pid);                                // Wait until foreground task finishes
+                // Child process
+                Setpgid(0, 0);                              // Create a new process group
+                Sigprocmask(SIG_SETMASK, &prev_mask, NULL); // Childprocess should have normal signal handler
+                Execve(argv[0], argv, NULL);                // Execute command
             }
             else
             {
-                Sigprocmask(SIG_BLOCK, &mask_all, NULL); // Block all signals for job operations
-                addjob(jobs, pid, BG, cmdline);          // Add job as a background task
-                char *line = malloc(MAXLINE * sizeof(char));
-                sprintf(line, "[%d] (%d) %s", pid2jid(pid), pid, cmdline);
-                Sio_puts(line);                             // Print job info
-                free(line);                                 // Free used space
-                Sigprocmask(SIG_SETMASK, &prev_mask, NULL); // Unblock SIGCHLD
+                if (!bg)
+                {
+                    // Not a background task, wait for the process to terminate
+                    Sigprocmask(SIG_BLOCK, &mask_all, NULL);    // Block all signals for job operations
+                    addjob(jobs, pid, FG, cmdline);             // Add job as a foreground task
+                    Sigprocmask(SIG_SETMASK, &prev_mask, NULL); // Unblock SIGCHLD
+                    waitfg(pid);                                // Wait until foreground task finishes
+                }
+                else
+                {
+                    Sigprocmask(SIG_BLOCK, &mask_all, NULL); // Block all signals for job operations
+                    addjob(jobs, pid, BG, cmdline);          // Add job as a background task
+                    char *line = malloc(MAXLINE * sizeof(char));
+                    sprintf(line, "[%d] (%d) %s", pid2jid(pid), pid, cmdline);
+                    Sio_puts(line);                             // Print job info
+                    free(line);                                 // Free used space
+                    Sigprocmask(SIG_SETMASK, &prev_mask, NULL); // Unblock SIGCHLD
+                }
             }
+        }
+        else
+        {
+            printf("%s: Command not found\n", argv[0]);
         }
     }
     free(argv); // Free memory of argv
@@ -178,18 +185,37 @@ int builtin_cmd(char **argv)
  */
 void do_bgfg(char **argv)
 {
-    int id = atoi(argv[1] + 1);
-    // Get the corresponding job
-    struct job_t *job = getjobjid(jobs, id);
-    if (job == NULL)
+    if (argv[1] == NULL)
     {
-        job = getjobpid(jobs, id);
-    }
-    if (job == NULL)
-    {
-        printf("%s: No such job\n", argv[1]);
+        printf("%s command requires PID or %%jobid argument\n", argv[0]);
         return;
     }
+    // Get the corresponding job
+    struct job_t *job;
+    if (*argv[1] == '%')
+    {
+        job = getjobjid(jobs, atoi(argv[1] + 1));
+        if (job == NULL)
+        {
+            printf("%s: No such job\n", argv[1]);
+            return;
+        }
+    }
+    else if (isdigit(*argv[1]))
+    {
+        job = getjobpid(jobs, atoi(argv[1]));
+        if (job == NULL)
+        {
+            printf("(%s): No such process\n", argv[1]);
+            return;
+        }
+    }
+    else
+    {
+        printf("%s: argument must be a PID or %%jobid\n", argv[0]);
+        return;
+    }
+    
     if (strcmp(argv[0], "bg") == 0 && job->state == ST) // Changing a stopped background job to a running background job
     {
         sigset_t prev_mask, mask_all;

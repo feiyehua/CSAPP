@@ -1,7 +1,7 @@
 /*
  * @Author       : FeiYehua
  * @Date         : 2025-08-11 10:56:21
- * @LastEditTime : 2025-08-11 17:36:53
+ * @LastEditTime : 2025-08-11 18:22:47
  * @LastEditors  : FeiYehua
  * @Description  :
  * @FilePath     : signal_handlers.c
@@ -37,21 +37,33 @@ void sigchld_handler(int sig)
         {
             struct job_t *job = getjobpid(jobs, pid);
             job->state = ST;
+            char *buf = malloc(MAXLINE * sizeof(char));
+            sprintf(buf, "Job [%d] (%d) stopped by signal 20\n", pid2jid(pid), pid);
+            Sio_puts(buf);
+            free(buf);
             if (verbose)
             {
                 char *buf = malloc(MAXLINE * sizeof(char));
-                sprintf(buf, "sigchld_handler: Job (%d) stopped", pid);
+                sprintf(buf, "sigchld_handler: Job (%d) stopped\n", pid);
                 Sio_puts(buf);
                 free(buf);
             }
         }
         else // The process is terminated
         {
+            if (!WIFEXITED(status))
+            {
+                char *buf = malloc(MAXLINE * sizeof(char));
+                sprintf(buf, "Job [%d] (%d) terminated by signal 2\n", pid2jid(pid), pid);
+                Sio_puts(buf);
+                free(buf);
+            }
             deletejob(jobs, pid);
+
             if (verbose)
             {
                 char *buf = malloc(MAXLINE * sizeof(char));
-                sprintf(buf, "sigchld_handler: Job (%d) deleted", pid);
+                sprintf(buf, "sigchld_handler: Job (%d) deleted\n", pid);
                 Sio_puts(buf);
                 free(buf);
             }
@@ -73,14 +85,10 @@ void sigint_handler(int sig)
     sigset_t mask, prev_mask;
     Sigfillset(&mask);
     Sigprocmask(SIG_BLOCK, &mask, &prev_mask); // Block all new-coming signals
-    pid_t pid = fgpid(jobs); // Get the foreground job pid
+    pid_t pid = fgpid(jobs);                   // Get the foreground job pid
     if (pid != 0)
     {
         Kill(-pid, SIGINT); // Sent SIGINT to current foreground job (and the other processes in the process group)
-        char *buf = malloc(MAXLINE * sizeof(char));
-        sprintf(buf, "Job [%d] (%d) terminated by signal 2\n", pid2jid(pid), pid);
-        Sio_puts(buf);
-        free(buf);
     }
     Sigprocmask(SIG_SETMASK, &prev_mask, NULL);
     errno = olderrno;
@@ -102,10 +110,6 @@ void sigtstp_handler(int sig)
     if (pid != 0)
     {
         Kill(-pid, SIGTSTP); // Sent SIGTSTP to current foreground job (and the other processes in the process group)
-        char *buf = malloc(MAXLINE * sizeof(char));
-        sprintf(buf, "Job [%d] (%d) stopped by signal 20\n", pid2jid(pid), pid);
-        Sio_puts(buf);
-        free(buf);
     }
     Sigprocmask(SIG_SETMASK, &prev_mask, NULL);
     errno = olderrno;
