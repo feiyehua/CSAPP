@@ -1,7 +1,7 @@
 /*
  * @Author       : FeiYehua
  * @Date         : 2015-04-02 02:12:26
- * @LastEditTime : 2025-08-14 17:04:32
+ * @LastEditTime : 2025-08-14 17:35:07
  * @LastEditors  : FeiYehua
  * @Description  :
  * @FilePath     : mm.c
@@ -153,8 +153,8 @@ void mm_free(void *ptr)
 
 /*
  * coalesce - Merge the nearby free blocks.
- argument ptr is a pointer to the operated block payload.
- Make sure the bp is a free block.
+ * argument ptr is a pointer to the operated block payload.
+ * Make sure the bp is a free block.
  */
 static void coalesce(void *bp)
 {
@@ -190,18 +190,58 @@ static void coalesce(void *bp)
 void *mm_realloc(void *ptr, size_t size)
 {
     void *oldptr = ptr;
+    // We have to implement proper alignment. This is the minimun memory space needed, including the header overhead.
+    size = ALIGN(size + sizeof(size_t));
     void *newptr;
     size_t copySize;
+    void *next_block = NEXT_BLKP(ptr);
+    void *next_block_header = HDRP(next_block);
+    unsigned int next_block_header_content = GET(next_block_header);
+    unsigned int alloc = next_block_header_content & ALLOC;
+    size_t next_block_size = next_block_header_content & (~0x7);
+    void *header = HDRP(ptr);
+    unsigned int block_header_content = GET(header);
+    size_t current_block_size = GET_SIZE(header);
 
-    newptr = mm_malloc(size);
-    if (newptr == NULL)
-        return NULL;
-    copySize = (*(size_t *)((char *)oldptr - sizeof(size_t))) & (~(ALLOC & PRE_ALLOC & NEXT_ALLOC));
-    if (size < copySize)
-        copySize = size;
-    memcpy(newptr, oldptr, copySize);
-    mm_free(oldptr);
-    return newptr;
+    if (current_block_size >= size) // This is a memory space shink
+    {
+        if (current_block_size - size >= MIN_BLOCK_SIZE) // Enough space to create a new block
+        {
+            split_block(ptr, size, block_header_content);
+        }
+        else
+        {
+            // Do nothing, use the space as padding
+        }
+        return oldptr;
+    }
+    if (!(alloc) && next_block_size + current_block_size >= size) // This is a memory expand, but we can complete the re-location in place
+    {
+        unsigned int current_block_prev_alloc = block_header_content & PRE_ALLOC;
+        if (next_block_size + current_block_size - size >= MIN_BLOCK_SIZE)
+        {
+            PUT(header, size | ALLOC | current_block_prev_alloc);
+            split_block(next_block, size - current_block_size, next_block_header_content);
+        }
+        else
+        {
+            // Edit the header of block
+            update_next_block(ptr, (next_block_size + current_block_size) | current_block_prev_alloc);
+        }
+        return oldptr;
+    }
+    else
+    {
+        newptr = mm_malloc(size);
+        if (newptr == NULL)
+            return NULL;
+        copySize = (*(size_t *)((char *)oldptr - sizeof(size_t))) & (~(ALLOC & PRE_ALLOC & NEXT_ALLOC));
+        if (size < copySize)
+            copySize = size;
+        memcpy(newptr, oldptr, copySize);
+        mm_free(oldptr);
+        return newptr;
+    }
 }
 
 /*
