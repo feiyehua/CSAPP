@@ -1,7 +1,7 @@
 /*
  * @Author       : FeiYehua
  * @Date         : 2015-04-02 02:12:26
- * @LastEditTime : 2025-08-15 01:19:44
+ * @LastEditTime : 2025-08-15 01:35:12
  * @LastEditors  : FeiYehua
  * @Description  :
  * @FilePath     : mm.c
@@ -303,27 +303,43 @@ static void *find_fit(size_t asize)
 
     void *current_bp = first_free_block; // The pointer to the first block's payload
     size_t max_size = 0;
+    size_t min_size = -1;
+    void *candidate = NULL;
     while (current_bp != NULL)
     {
         void *current_block_header_pointer = HDRP(current_bp);
         unsigned int current_block_header_content = GET(current_block_header_pointer);
-        unsigned int alloc = 0;
         size_t size = current_block_header_content & (~0x7); // The size of free block
         max_size = MAX(size, max_size);
-        if ((!alloc) && size - MIN_BLOCK_SIZE >= newsize) // Freed block have enough space to create a new block
+        if (size >= newsize && size < min_size)
         {
-            split_block(current_bp, newsize, current_block_header_content);
-            return current_bp;
-        }
-        else if ((!alloc) && size >= newsize)
-        {
-            delete(current_bp); // Remove the current block from free block list
-            update_next_block(current_bp, current_block_header_content);
-            return current_bp;
+            min_size = size;
+            candidate = current_bp;
         }
         current_bp = ((struct LIST *)current_bp)->next;
     }
-    max_free = max_size;
+    max_free = max_size; // Update the max_free tag
+
+    if (candidate == NULL)
+    {
+        return NULL;
+    }
+    // Return best-fit block
+    current_bp = candidate;
+    void *current_block_header_pointer = HDRP(current_bp);
+    unsigned int current_block_header_content = GET(current_block_header_pointer);
+    size_t size = current_block_header_content & (~0x7); // The size of free block
+    if (size - MIN_BLOCK_SIZE >= newsize)                // Freed block have enough space to create a new block
+    {
+        split_block(current_bp, newsize, current_block_header_content);
+        return current_bp;
+    }
+    else
+    {
+        delete(current_bp); // Remove the current block from free block list
+        update_next_block(current_bp, current_block_header_content);
+        return current_bp;
+    }
     return NULL;
 }
 
