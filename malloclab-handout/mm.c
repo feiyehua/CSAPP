@@ -1,7 +1,7 @@
 /*
  * @Author       : FeiYehua
  * @Date         : 2015-04-02 02:12:26
- * @LastEditTime : 2025-08-14 23:37:44
+ * @LastEditTime : 2025-08-14 22:54:10
  * @LastEditors  : FeiYehua
  * @Description  :
  * @FilePath     : mm.c
@@ -109,6 +109,7 @@ static void delete(void *bp);
 static void *init_block; // The (virtual) payload pointer of the front boundry block
 static void *last_block;
 static void *first_free_block = NULL;
+static int max_free;
 
 /*
  * mm_init - initialize the malloc package.
@@ -121,6 +122,7 @@ int mm_init(void)
     PUT(last_block, 0 | ALLOC | PRE_ALLOC);
     init_block = (void *)((char *)init_block + 4);
     first_free_block = NULL;
+    max_free = -1;
     return 0;
 }
 
@@ -180,7 +182,8 @@ static void coalesce(void *bp)
     unsigned int mask = GET_MASK(current_block_header_ptr); // Get the status bits of current block
     if (!(GET(next_block_header_ptr) & ALLOC))              // The next block is free
     {
-        size_t new_block_size = current_block_size + next_block_size;
+        int new_block_size = current_block_size + next_block_size;
+        max_free = MAX(new_block_size, max_free);
         PUT(current_block_header_ptr, new_block_size | mask);
         add_footer(bp);                 // Add footer for the new block
         delete(next_block_ptr);         // Delete the old next block in the list
@@ -293,15 +296,21 @@ static void *find_fit(size_t asize)
     {
         return first_free_block;
     }
+    if (max_free < newsize && max_free != -1)
+    {
+        return NULL;
+    }
 
     void *current_bp = first_free_block; // The pointer to the first block's payload
+    size_t max_size = 0;
     while (current_bp != NULL)
     {
         void *current_block_header_pointer = HDRP(current_bp);
         unsigned int current_block_header_content = GET(current_block_header_pointer);
         unsigned int alloc = 0;
         size_t size = current_block_header_content & (~0x7); // The size of free block
-        if ((!alloc) && size - MIN_BLOCK_SIZE >= newsize)    // Freed block have enough space to create a new block
+        max_size = MAX(size, max_size);
+        if ((!alloc) && size - MIN_BLOCK_SIZE >= newsize) // Freed block have enough space to create a new block
         {
             split_block(current_bp, newsize, current_block_header_content);
             return current_bp;
@@ -314,6 +323,7 @@ static void *find_fit(size_t asize)
         }
         current_bp = ((struct LIST *)current_bp)->next;
     }
+    max_free = max_size;
     return NULL;
 }
 
@@ -357,6 +367,8 @@ static void update_next_block(void *bp, unsigned int block_header_content)
  */
 static void insert(void *bp)
 {
+    int size = GET_SIZE(HDRP(bp));
+    max_free = MAX(size, max_free);
     struct LIST *old_head = (struct LIST *)first_free_block;
     void *old_head_block = first_free_block;
     struct LIST *new_head = (struct LIST *)bp;

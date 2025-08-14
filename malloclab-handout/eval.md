@@ -9,12 +9,12 @@ Perf index = 54 (util) + 40 (thru) = 94/100
 Running: ./mdriver -f traces/binary-bal.rep
 Team Name:Team
 Member 1 :Yehua Fei:hello@csapp.it
-Perf index = 33 (util) + 29 (thru) = 62/100
+Perf index = 33 (util) + 40 (thru) = 73/100
 ----------------------------------------
 Running: ./mdriver -f traces/binary2-bal.rep
 Team Name:Team
 Member 1 :Yehua Fei:hello@csapp.it
-Perf index = 31 (util) + 16 (thru) = 47/100
+Perf index = 31 (util) + 40 (thru) = 71/100
 ----------------------------------------
 Running: ./mdriver -f traces/cccp-bal.rep
 Team Name:Team
@@ -60,5 +60,5 @@ All trace files processed.
 Team Name:Team
 Member 1 :Yehua Fei:hello@csapp.it
 Using default tracefiles in traces/
-Perf index = 45 (util) + 33 (thru) = 78/100
+Perf index = 45 (util) + 40 (thru) = 85/100
 ```
