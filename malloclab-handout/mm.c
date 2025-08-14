@@ -1,7 +1,7 @@
 /*
  * @Author       : FeiYehua
  * @Date         : 2015-04-02 02:12:26
- * @LastEditTime : 2025-08-14 13:56:32
+ * @LastEditTime : 2025-08-14 16:11:02
  * @LastEditors  : FeiYehua
  * @Description  :
  * @FilePath     : mm.c
@@ -90,9 +90,11 @@ team_t team = {
 /* Function prototypes for internal helper routines */
 static void *extend_heap(size_t size);
 static void *coalesce(void *bp);
+static void *find_fit(size_t asize);
 
-static void *init_block;
+static void *init_block; // The (virtual) payload pointer of the front boundry block
 static void *last_block;
+
 /*
  * mm_init - initialize the malloc package.
  */
@@ -102,7 +104,7 @@ int mm_init(void)
     PUT(init_block, 0 | ALLOC); // Store the initial block header
     last_block = mem_sbrk(4);   // Extent the heap size by 4 byte to store the initial block header
     PUT(last_block, 0 | ALLOC | PRE_ALLOC);
-
+    init_block = (void *)((char *)init_block + 4);
     return 0;
 }
 
@@ -112,7 +114,8 @@ int mm_init(void)
  */
 void *mm_malloc(size_t size)
 {
-    return extend_heap(size);
+    void *free_bp = find_fit(size);
+    return (free_bp != NULL) ? free_bp : extend_heap(size);
 }
 
 /*
@@ -140,7 +143,7 @@ void mm_free(void *ptr)
     PUT(next_block_header_ptr, GET(next_block_header_ptr) & (~PRE_ALLOC)); // Mark the next block's header: the previous block is a free block
     if (!(GET(next_block_header_ptr) & ALLOC))                             // The next block is free, we also modify it's footer to keep consistency
     {
-        add_footer(next_block_ptr);
+        // add_footer(next_block_ptr);// This can be omitted as only the size in footer matters
     }
     coalesce(ptr); // Merge the blocks
 }
@@ -190,7 +193,7 @@ void *mm_realloc(void *ptr, size_t size)
     newptr = mm_malloc(size);
     if (newptr == NULL)
         return NULL;
-    copySize = *(size_t *)((char *)oldptr - SIZE_T_SIZE);
+    copySize = (*(size_t *)((char *)oldptr - sizeof(size_t))) & (~(ALLOC & PRE_ALLOC & NEXT_ALLOC));
     if (size < copySize)
         copySize = size;
     memcpy(newptr, oldptr, copySize);
@@ -219,4 +222,30 @@ void *extend_heap(size_t size)
         PUT(p, (newsize) | GET_PRE_ALLOC(p) | ALLOC); // We put the total size of the block (including the size of header) to the header so that we can quickly find the next block
         return (void *)((char *)p + sizeof(size_t));
     }
+}
+
+/*
+ * find_fit - Find the first free block with size size
+ */
+static void *find_fit(size_t asize)
+{
+    asize += 4;
+    if (init_block != last_block)
+    {
+        void *current_bp = (void *)((char *)init_block + 4); // The pointer to the first block's payload
+        while (current_bp < last_block)
+        {
+            void *current_block_header_pointer = HDRP(current_bp);
+            if ((!GET_ALLOC(current_block_header_pointer)) && GET_SIZE(current_block_header_pointer) >= asize) // Freed block and have enough space
+            {
+                PUT(current_block_header_pointer, GET(current_block_header_pointer) | ALLOC);
+                void *next_bp = NEXT_BLKP(current_bp);
+                void *next_block_header_pointer = HDRP(next_bp);
+                PUT(next_block_header_pointer, GET(next_block_header_pointer) | PRE_ALLOC); // Update next block's header
+                return current_bp;
+            }
+            current_bp = NEXT_BLKP(current_bp);
+        }
+    }
+    return NULL;
 }
