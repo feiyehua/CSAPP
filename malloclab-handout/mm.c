@@ -1,7 +1,7 @@
 /*
  * @Author       : FeiYehua
  * @Date         : 2015-04-02 02:12:26
- * @LastEditTime : 2025-08-13 19:35:20
+ * @LastEditTime : 2025-08-14 13:56:32
  * @LastEditors  : FeiYehua
  * @Description  :
  * @FilePath     : mm.c
@@ -46,6 +46,7 @@
 #define GET_SIZE(p) (GET(p) & ~0x7) // line:vm:mm:getsize
 #define GET_ALLOC(p) (GET(p) & 0x1) // line:vm:mm:getalloc
 #define GET_PRE_ALLOC(p) (GET(p) & PRE_ALLOC)
+#define GET_MASK(p) (GET(p) & 0x7) // Get the mask of p
 
 /* Given block ptr bp, compute address of its header and footer */
 #define HDRP(bp) ((char *)(bp) - WSIZE)                      // line:vm:mm:hdrp
@@ -88,6 +89,7 @@ team_t team = {
 
 /* Function prototypes for internal helper routines */
 static void *extend_heap(size_t size);
+static void *coalesce(void *bp);
 
 static void *init_block;
 static void *last_block;
@@ -114,10 +116,66 @@ void *mm_malloc(size_t size)
 }
 
 /*
+ * add_footer - Copy bp's header's content to it's footer.
+ */
+void add_footer(void *bp)
+{
+    void *header = HDRP(bp);
+    void *footer = FTRP(bp);
+    unsigned int header_content = GET(header);
+    PUT(footer, header_content);
+}
+
+/*
  * mm_free - Freeing a block does nothing.
+ argument ptr is a pointer to the block payload.
  */
 void mm_free(void *ptr)
 {
+    void *header_ptr = HDRP(ptr);
+    PUT(header_ptr, GET(header_ptr) & (~ALLOC)); // Modify the header
+    add_footer(ptr);
+    void *next_block_ptr = NEXT_BLKP(ptr);
+    void *next_block_header_ptr = HDRP(next_block_ptr);
+    PUT(next_block_header_ptr, GET(next_block_header_ptr) & (~PRE_ALLOC)); // Mark the next block's header: the previous block is a free block
+    if (!(GET(next_block_header_ptr) & ALLOC))                             // The next block is free, we also modify it's footer to keep consistency
+    {
+        add_footer(next_block_ptr);
+    }
+    coalesce(ptr); // Merge the blocks
+}
+
+/*
+ * coalesce - Merge the nearby free blocks.
+ argument ptr is a pointer to the operated block payload.
+ Make sure the bp is a free block.
+ */
+static void *coalesce(void *bp)
+{
+    void *next_block_ptr = NEXT_BLKP(bp);
+    void *next_block_header_ptr = HDRP(next_block_ptr);
+    size_t next_block_size = GET_SIZE(next_block_header_ptr);
+    void *current_block_header_ptr = HDRP(bp);
+    size_t current_block_size = GET_SIZE(current_block_header_ptr);
+    unsigned int mask = GET_MASK(current_block_header_ptr); // Get the status bits of current block
+    if (!(GET(next_block_header_ptr) & ALLOC))              // The next block is free
+    {
+        size_t new_block_size = current_block_size + next_block_size;
+        PUT(current_block_header_ptr, new_block_size | mask);
+        add_footer(bp);                 // Add footer for the new block
+        next_block_ptr = NEXT_BLKP(bp); // The new next block's payload address
+        next_block_header_ptr = HDRP(next_block_ptr);
+        PUT(next_block_header_ptr, GET(next_block_header_ptr) & (~PRE_ALLOC)); // Mark the next block's previous block as free
+        if (!(GET(next_block_header_ptr) & ALLOC))                             // The new next block is free
+        {
+            coalesce(bp);
+        }
+    }
+    if (!(mask & PRE_ALLOC)) // If the previous block is free
+    {
+        void *previous_block_ptr = PREV_BLKP(bp);
+        coalesce(previous_block_ptr); // Coalesce from the previous block's perspective
+    }
 }
 
 /*
