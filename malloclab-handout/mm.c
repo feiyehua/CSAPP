@@ -1,7 +1,7 @@
 /*
  * @Author       : FeiYehua
  * @Date         : 2015-04-02 02:12:26
- * @LastEditTime : 2025-08-14 18:12:34
+ * @LastEditTime : 2025-08-14 22:50:56
  * @LastEditors  : FeiYehua
  * @Description  :
  * @FilePath     : mm.c
@@ -32,7 +32,7 @@
 #define WSIZE 4 /* Word and header/footer size (bytes) */            // line:vm:mm:beginconst
 #define DSIZE 8                                                      /* Double word size (bytes) */
 #define CHUNKSIZE (1 << 12) /* Extend heap by this amount (bytes) */ // line:vm:mm:endconst
-#define MIN_BLOCK_SIZE 8                                             // The minimun size of a block
+#define MIN_BLOCK_SIZE 16                                            // The minimun size of a block
 
 #define MAX(x, y) ((x) > (y) ? (x) : (y))
 
@@ -95,8 +95,13 @@ static void *find_fit(size_t asize);
 static void split_block(void *bp, size_t size, unsigned int block_header_content);
 static void update_next_block(void *bp, unsigned int block_header_content);
 
+/* Function prototypes for internal list operations */
+static void insert(void *bp);
+static void delete(void *bp);
+
 static void *init_block; // The (virtual) payload pointer of the front boundry block
 static void *last_block;
+static void *first_free_block = NULL;
 
 /*
  * mm_init - initialize the malloc package.
@@ -191,7 +196,7 @@ void *mm_realloc(void *ptr, size_t size)
 {
     void *oldptr = ptr;
     // We have to implement proper alignment. This is the minimun memory space needed, including the header overhead.
-    size = ALIGN(size + sizeof(size_t));
+    size = MAX(ALIGN(size + sizeof(size_t)), 16);
     void *newptr;
     size_t copySize;
     void *next_block = NEXT_BLKP(ptr);
@@ -323,4 +328,58 @@ static void update_next_block(void *bp, unsigned int block_header_content)
     void *next_block_header_pointer = HDRP(next_bp);
     PUT(next_block_header_pointer, GET(next_block_header_pointer) | PRE_ALLOC); // Update next block's header
     return;
+}
+
+/* List implement code */
+struct LIST
+{
+    void *next;
+    void *prev;
+};
+/* Implement a doubly list to find free blocks faster */
+/* In the payload area, the first 4 byte stores the next free block, and the 5-8 byte stores the previous block */
+/* The type of block in the previous codes is void *. */
+
+/*
+ * insert - Insert a new free block to the list.
+ */
+static void insert(void *bp)
+{
+    struct LIST *old_head = (struct LIST *)first_free_block;
+    void *old_head_block = first_free_block;
+    struct LIST *new_head = (struct LIST *)bp;
+    first_free_block = bp;
+    if (old_head == NULL) // There is no free block before
+    {
+        new_head->next = NULL;
+        new_head->prev = NULL;
+    }
+    else
+    {
+        old_head->prev = first_free_block;
+        new_head->next = old_head_block;
+        new_head->prev = NULL;
+    }
+}
+
+/*
+ * delete - Delete a free block in the list.
+ */
+static void delete(void *bp)
+{
+    struct LIST *ele = (struct LIST *)bp; // The operated element
+    if (ele->prev != NULL)
+    {
+        struct LIST *pre = (struct LIST *)ele->prev;
+        pre->next = ele->next;
+    }
+    else // This element is the head of list
+    {
+        first_free_block = ele->next;
+    }
+    if (ele->next != NULL)
+    {
+        struct LIST *next = (struct LIST *)ele->next;
+        next->prev = ele->prev;
+    }
 }
