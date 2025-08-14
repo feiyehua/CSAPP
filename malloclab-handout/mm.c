@@ -89,7 +89,7 @@ team_t team = {
 
 /* Function prototypes for internal helper routines */
 static void *extend_heap(size_t size);
-static void *coalesce(void *bp);
+static void coalesce(void *bp);
 static void *find_fit(size_t asize);
 static void split_block(void *bp, size_t size, unsigned int block_header_content);
 
@@ -154,7 +154,7 @@ void mm_free(void *ptr)
  argument ptr is a pointer to the operated block payload.
  Make sure the bp is a free block.
  */
-static void *coalesce(void *bp)
+static void coalesce(void *bp)
 {
     void *next_block_ptr = NEXT_BLKP(bp);
     void *next_block_header_ptr = HDRP(next_block_ptr);
