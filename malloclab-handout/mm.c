@@ -1,7 +1,7 @@
 /*
  * @Author       : FeiYehua
  * @Date         : 2015-04-02 02:12:26
- * @LastEditTime : 2025-08-14 16:11:02
+ * @LastEditTime : 2025-08-14 16:32:24
  * @LastEditors  : FeiYehua
  * @Description  :
  * @FilePath     : mm.c
@@ -229,16 +229,29 @@ void *extend_heap(size_t size)
  */
 static void *find_fit(size_t asize)
 {
-    asize += 4;
+    int newsize = ALIGN(asize + sizeof(size_t));
     if (init_block != last_block)
     {
         void *current_bp = (void *)((char *)init_block + 4); // The pointer to the first block's payload
         while (current_bp < last_block)
         {
             void *current_block_header_pointer = HDRP(current_bp);
-            if ((!GET_ALLOC(current_block_header_pointer)) && GET_SIZE(current_block_header_pointer) >= asize) // Freed block and have enough space
+            unsigned int current_block_header_content = GET(current_block_header_pointer);
+            unsigned int alloc = current_block_header_content & ALLOC;
+            size_t size = current_block_header_content & (~0x7); // The size of free block
+            if ((!alloc) && size - 8 >= newsize)                 // Freed block have enough space to create a new block
             {
-                PUT(current_block_header_pointer, GET(current_block_header_pointer) | ALLOC);
+                unsigned int mask = current_block_header_content & 0x7;
+                PUT(current_block_header_pointer, newsize | mask | ALLOC);
+                void *next_bp = NEXT_BLKP(current_bp);
+                void *next_block_header_pointer = HDRP(next_bp);
+                PUT(next_block_header_pointer, size - newsize | PRE_ALLOC); // Update next block's header
+                add_footer(next_bp);
+                return current_bp;
+            }
+            else if ((!alloc) && size >= newsize)
+            {
+                PUT(current_block_header_pointer, current_block_header_content | ALLOC);
                 void *next_bp = NEXT_BLKP(current_bp);
                 void *next_block_header_pointer = HDRP(next_bp);
                 PUT(next_block_header_pointer, GET(next_block_header_pointer) | PRE_ALLOC); // Update next block's header
