@@ -27,6 +27,41 @@
 #include "mm.h"
 #include "memlib.h"
 
+/* $begin mallocmacros */
+/* Basic constants and macros */
+#define WSIZE 4 /* Word and header/footer size (bytes) */            // line:vm:mm:beginconst
+#define DSIZE 8                                                      /* Double word size (bytes) */
+#define CHUNKSIZE (1 << 12) /* Extend heap by this amount (bytes) */ // line:vm:mm:endconst
+
+#define MAX(x, y) ((x) > (y) ? (x) : (y))
+
+/* Pack a size and allocated bit into a word */
+#define PACK(size, alloc) ((size) | (alloc)) // line:vm:mm:pack
+
+/* Read and write a word at address p */
+#define GET(p) (*(unsigned int *)(p))              // line:vm:mm:get
+#define PUT(p, val) (*(unsigned int *)(p) = (val)) // line:vm:mm:put
+
+/* Read the size and allocated fields from address p */
+#define GET_SIZE(p) (GET(p) & ~0x7) // line:vm:mm:getsize
+#define GET_ALLOC(p) (GET(p) & 0x1) // line:vm:mm:getalloc
+#define GET_PRE_ALLOC(p) (GET(p) & PRE_ALLOC)
+
+/* Given block ptr bp, compute address of its header and footer */
+#define HDRP(bp) ((char *)(bp) - WSIZE)                      // line:vm:mm:hdrp
+#define FTRP(bp) ((char *)(bp) + GET_SIZE(HDRP(bp)) - DSIZE) // line:vm:mm:ftrp
+
+/* Given block ptr bp, compute address of next and previous blocks */
+#define NEXT_BLKP(bp) ((char *)(bp) + GET_SIZE(((char *)(bp) - WSIZE))) // line:vm:mm:nextblkp
+#define PREV_BLKP(bp) ((char *)(bp) - GET_SIZE(((char *)(bp) - DSIZE))) // line:vm:mm:prevblkp
+
+/* Mask for status bits */
+#define ALLOC 1
+#define NEXT_ALLOC 2 // Actually, we can easily determine whether the next block is allocated, so this bit is unnecessary.
+#define PRE_ALLOC 4
+
+/* $end mallocmacros */
+
 /*********************************************************
  * NOTE TO STUDENTS: Before you do anything else, please
  * provide your team information in the following struct.
@@ -49,13 +84,23 @@ team_t team = {
 /* rounds up to the nearest multiple of ALIGNMENT */
 #define ALIGN(size) (((size) + (ALIGNMENT - 1)) & ~0x7)
 
-#define SIZE_T_SIZE (ALIGN(sizeof(size_t)))
+#define SIZE_T_SIZE (ALIGN(sizeof(size_t))) // Evaluate to 8
 
+/* Function prototypes for internal helper routines */
+static void *extend_heap(size_t size);
+
+static void *init_block;
+static void *last_block;
 /*
  * mm_init - initialize the malloc package.
  */
 int mm_init(void)
 {
+    init_block = mem_sbrk(4);   // Extent the heap size by 4 byte to store the initial block header
+    PUT(init_block, 0 | ALLOC); // Store the initial block header
+    last_block = mem_sbrk(4);   // Extent the heap size by 4 byte to store the initial block header
+    PUT(last_block, 0 | ALLOC | PRE_ALLOC);
+
     return 0;
 }
 
@@ -65,15 +110,7 @@ int mm_init(void)
  */
 void *mm_malloc(size_t size)
 {
-    int newsize = ALIGN(size + SIZE_T_SIZE);
-    void *p = mem_sbrk(newsize);
-    if (p == (void *)-1)
-        return NULL;
-    else
-    {
-        *(size_t *)p = size;
-        return (void *)((char *)p + SIZE_T_SIZE);
-    }
+    return extend_heap(size);
 }
 
 /*
@@ -101,4 +138,27 @@ void *mm_realloc(void *ptr, size_t size)
     memcpy(newptr, oldptr, copySize);
     mm_free(oldptr);
     return newptr;
+}
+
+/*
+ * extend_heap - Extent the heap size by argument size (in byte), with proper alignment
+ */
+void *extend_heap(size_t size)
+{
+    int newsize = ALIGN(size + sizeof(size_t));
+    // For an allocated block, we use the first 4 byte as header. The minimum block size is 8 byte.
+    // For an free block, we use the the fisrt 4 byte and the last 4 byte as footer, the minimum block size is 8 byte.
+    void *p = mem_sbrk(newsize);
+    if (p == (void *)-1)
+        return NULL;
+    else
+    {
+        void *new_last_block = (void *)((char *)p - 4 + newsize); // New location of last block
+        // unsigned int last_block_header = GET(last_block); // Old last block's header
+        PUT(new_last_block, 0 | ALLOC | PRE_ALLOC); // Modifiy the new last block's header
+        p = last_block;                             // The return block's header pointer
+        last_block = new_last_block;
+        PUT(p, (newsize) | GET_PRE_ALLOC(p) | ALLOC); // We put the total size of the block (including the size of header) to the header so that we can quickly find the next block
+        return (void *)((char *)p + sizeof(size_t));
+    }
 }
