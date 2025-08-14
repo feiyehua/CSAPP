@@ -32,6 +32,7 @@
 #define WSIZE 4 /* Word and header/footer size (bytes) */            // line:vm:mm:beginconst
 #define DSIZE 8                                                      /* Double word size (bytes) */
 #define CHUNKSIZE (1 << 12) /* Extend heap by this amount (bytes) */ // line:vm:mm:endconst
+#define MIN_BLOCK_SIZE 8                                             // The minimun size of a block
 
 #define MAX(x, y) ((x) > (y) ? (x) : (y))
 
@@ -92,6 +93,7 @@ static void *extend_heap(size_t size);
 static void coalesce(void *bp);
 static void *find_fit(size_t asize);
 static void split_block(void *bp, size_t size, unsigned int block_header_content);
+static void update_next_block(void *bp, unsigned int block_header_content);
 
 static void *init_block; // The (virtual) payload pointer of the front boundry block
 static void *last_block;
@@ -247,10 +249,7 @@ static void *find_fit(size_t asize)
             }
             else if ((!alloc) && size >= newsize)
             {
-                PUT(current_block_header_pointer, current_block_header_content | ALLOC);
-                void *next_bp = NEXT_BLKP(current_bp);
-                void *next_block_header_pointer = HDRP(next_bp);
-                PUT(next_block_header_pointer, GET(next_block_header_pointer) | PRE_ALLOC); // Update next block's header
+                update_next_block(current_bp, current_block_header_content);
                 return current_bp;
             }
             current_bp = NEXT_BLKP(current_bp);
@@ -272,4 +271,16 @@ static void split_block(void *bp, size_t size, unsigned int block_header_content
     void *next_block_header_pointer = HDRP(next_bp);
     PUT(next_block_header_pointer, (oldsize - size) | PRE_ALLOC); // Update next block's header
     add_footer(next_bp);
+}
+
+/*
+ * update_next_block - When bp is allocated, update the PRE_ALLOC of the next block.
+ */
+static void update_next_block(void *bp, unsigned int block_header_content)
+{
+    PUT(HDRP(bp), block_header_content | ALLOC);
+    void *next_bp = NEXT_BLKP(bp);
+    void *next_block_header_pointer = HDRP(next_bp);
+    PUT(next_block_header_pointer, GET(next_block_header_pointer) | PRE_ALLOC); // Update next block's header
+    return;
 }
