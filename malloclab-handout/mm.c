@@ -1,7 +1,7 @@
 /*
  * @Author       : FeiYehua
  * @Date         : 2015-04-02 02:12:26
- * @LastEditTime : 2025-08-14 22:50:56
+ * @LastEditTime : 2025-08-14 23:37:44
  * @LastEditors  : FeiYehua
  * @Description  :
  * @FilePath     : mm.c
@@ -80,6 +80,13 @@ team_t team = {
     /* Second member's email address (leave blank if none) */
     ""};
 
+/* LIST data structure */
+struct LIST
+{
+    void *next;
+    void *prev;
+};
+
 /* single word (4) or double word (8) alignment */
 #define ALIGNMENT 8
 
@@ -113,6 +120,7 @@ int mm_init(void)
     last_block = mem_sbrk(4);   // Extent the heap size by 4 byte to store the initial block header
     PUT(last_block, 0 | ALLOC | PRE_ALLOC);
     init_block = (void *)((char *)init_block + 4);
+    first_free_block = NULL;
     return 0;
 }
 
@@ -149,6 +157,7 @@ void mm_free(void *ptr)
     void *next_block_ptr = NEXT_BLKP(ptr);
     void *next_block_header_ptr = HDRP(next_block_ptr);
     PUT(next_block_header_ptr, GET(next_block_header_ptr) & (~PRE_ALLOC)); // Mark the next block's header: the previous block is a free block
+    insert(ptr);                                                           // Add this block to the free list
     if (!(GET(next_block_header_ptr) & ALLOC))                             // The next block is free, we also modify it's footer to keep consistency
     {
         // add_footer(next_block_ptr);// This can be omitted as only the size in footer matters
@@ -174,6 +183,7 @@ static void coalesce(void *bp)
         size_t new_block_size = current_block_size + next_block_size;
         PUT(current_block_header_ptr, new_block_size | mask);
         add_footer(bp);                 // Add footer for the new block
+        delete(next_block_ptr);         // Delete the old next block in the list
         next_block_ptr = NEXT_BLKP(bp); // The new next block's payload address
         next_block_header_ptr = HDRP(next_block_ptr);
         PUT(next_block_header_ptr, GET(next_block_header_ptr) & (~PRE_ALLOC)); // Mark the next block's previous block as free
@@ -231,6 +241,7 @@ void *mm_realloc(void *ptr, size_t size)
         else
         {
             // Edit the header of block
+            delete(next_block); // Delete the next block in the free block list
             update_next_block(ptr, (next_block_size + current_block_size) | current_block_prev_alloc);
         }
         return oldptr;
@@ -278,37 +289,41 @@ void *extend_heap(size_t size)
 static void *find_fit(size_t asize)
 {
     int newsize = ALIGN(asize + sizeof(size_t));
-    if (init_block != last_block)
+    if (first_free_block == NULL)
     {
-        void *current_bp = (void *)((char *)init_block + 4); // The pointer to the first block's payload
-        while (current_bp < last_block)
+        return first_free_block;
+    }
+
+    void *current_bp = first_free_block; // The pointer to the first block's payload
+    while (current_bp != NULL)
+    {
+        void *current_block_header_pointer = HDRP(current_bp);
+        unsigned int current_block_header_content = GET(current_block_header_pointer);
+        unsigned int alloc = 0;
+        size_t size = current_block_header_content & (~0x7); // The size of free block
+        if ((!alloc) && size - MIN_BLOCK_SIZE >= newsize)    // Freed block have enough space to create a new block
         {
-            void *current_block_header_pointer = HDRP(current_bp);
-            unsigned int current_block_header_content = GET(current_block_header_pointer);
-            unsigned int alloc = current_block_header_content & ALLOC;
-            size_t size = current_block_header_content & (~0x7); // The size of free block
-            if ((!alloc) && size - MIN_BLOCK_SIZE >= newsize)    // Freed block have enough space to create a new block
-            {
-                split_block(current_bp, newsize, current_block_header_content);
-                return current_bp;
-            }
-            else if ((!alloc) && size >= newsize)
-            {
-                update_next_block(current_bp, current_block_header_content);
-                return current_bp;
-            }
-            current_bp = NEXT_BLKP(current_bp);
+            split_block(current_bp, newsize, current_block_header_content);
+            return current_bp;
         }
+        else if ((!alloc) && size >= newsize)
+        {
+            delete(current_bp); // Remove the current block from free block list
+            update_next_block(current_bp, current_block_header_content);
+            return current_bp;
+        }
+        current_bp = ((struct LIST *)current_bp)->next;
     }
     return NULL;
 }
 
 /*
- * split_block - Split the given block into half, with the first half having size size.
+ * split_block - Split the given (free) block into half, with the first half having size size.
  * The first block is always allocated.
  */
 static void split_block(void *bp, size_t size, unsigned int block_header_content)
 {
+    delete(bp);
     size_t oldsize = block_header_content & (~0x7);
     unsigned int mask = block_header_content & 0x7;
     PUT(HDRP(bp), size | mask | ALLOC);
@@ -316,6 +331,7 @@ static void split_block(void *bp, size_t size, unsigned int block_header_content
     void *next_block_header_pointer = HDRP(next_bp);
     PUT(next_block_header_pointer, (oldsize - size) | PRE_ALLOC); // Update next block's header
     add_footer(next_bp);
+    insert(next_bp);
 }
 
 /*
@@ -331,11 +347,7 @@ static void update_next_block(void *bp, unsigned int block_header_content)
 }
 
 /* List implement code */
-struct LIST
-{
-    void *next;
-    void *prev;
-};
+
 /* Implement a doubly list to find free blocks faster */
 /* In the payload area, the first 4 byte stores the next free block, and the 5-8 byte stores the previous block */
 /* The type of block in the previous codes is void *. */
