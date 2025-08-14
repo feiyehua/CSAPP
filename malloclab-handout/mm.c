@@ -1,7 +1,7 @@
 /*
  * @Author       : FeiYehua
  * @Date         : 2015-04-02 02:12:26
- * @LastEditTime : 2025-08-14 22:54:10
+ * @LastEditTime : 2025-08-15 01:19:44
  * @LastEditors  : FeiYehua
  * @Description  :
  * @FilePath     : mm.c
@@ -369,20 +369,31 @@ static void insert(void *bp)
 {
     int size = GET_SIZE(HDRP(bp));
     max_free = MAX(size, max_free);
-    struct LIST *old_head = (struct LIST *)first_free_block;
-    void *old_head_block = first_free_block;
-    struct LIST *new_head = (struct LIST *)bp;
-    first_free_block = bp;
-    if (old_head == NULL) // There is no free block before
+    void *current_block = first_free_block;
+    void *last_block = NULL;
+    while (current_block != NULL && current_block < bp)
     {
-        new_head->next = NULL;
-        new_head->prev = NULL;
+        last_block = current_block;
+        current_block = ((struct LIST *)current_block)->next;
     }
-    else
+    // The new block should be inserted after last_block.
+
+    struct LIST *pre = (struct LIST *)last_block;
+    struct LIST *next = pre == NULL ? first_free_block : (struct LIST *)pre->next;
+    struct LIST *inserted = (struct LIST *)bp;
+    if (last_block == NULL)
     {
-        old_head->prev = first_free_block;
-        new_head->next = old_head_block;
-        new_head->prev = NULL;
+        first_free_block = bp;
+    }
+    inserted->next = next;
+    inserted->prev = pre;
+    if (pre != NULL) // There is no free block afterwards
+    {
+        pre->next = bp;
+    }
+    if (next != NULL)
+    {
+        next->prev = bp;
     }
 }
 
