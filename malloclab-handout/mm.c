@@ -1,7 +1,7 @@
 /*
  * @Author       : FeiYehua
  * @Date         : 2015-04-02 02:12:26
- * @LastEditTime : 2025-08-14 16:32:24
+ * @LastEditTime : 2025-08-14 17:04:32
  * @LastEditors  : FeiYehua
  * @Description  :
  * @FilePath     : mm.c
@@ -91,6 +91,7 @@ team_t team = {
 static void *extend_heap(size_t size);
 static void *coalesce(void *bp);
 static void *find_fit(size_t asize);
+static void split_block(void *bp, size_t size, unsigned int block_header_content);
 
 static void *init_block; // The (virtual) payload pointer of the front boundry block
 static void *last_block;
@@ -241,12 +242,7 @@ static void *find_fit(size_t asize)
             size_t size = current_block_header_content & (~0x7); // The size of free block
             if ((!alloc) && size - 8 >= newsize)                 // Freed block have enough space to create a new block
             {
-                unsigned int mask = current_block_header_content & 0x7;
-                PUT(current_block_header_pointer, newsize | mask | ALLOC);
-                void *next_bp = NEXT_BLKP(current_bp);
-                void *next_block_header_pointer = HDRP(next_bp);
-                PUT(next_block_header_pointer, size - newsize | PRE_ALLOC); // Update next block's header
-                add_footer(next_bp);
+                split_block(current_bp, newsize, current_block_header_content);
                 return current_bp;
             }
             else if ((!alloc) && size >= newsize)
@@ -261,4 +257,19 @@ static void *find_fit(size_t asize)
         }
     }
     return NULL;
+}
+
+/*
+ * split_block - Split the given block into half, with the first half having size size.
+ * The first block is always allocated.
+ */
+static void split_block(void *bp, size_t size, unsigned int block_header_content)
+{
+    size_t oldsize = block_header_content & (~0x7);
+    unsigned int mask = block_header_content & 0x7;
+    PUT(HDRP(bp), size | mask | ALLOC);
+    void *next_bp = NEXT_BLKP(bp);
+    void *next_block_header_pointer = HDRP(next_bp);
+    PUT(next_block_header_pointer, (oldsize - size) | PRE_ALLOC); // Update next block's header
+    add_footer(next_bp);
 }
