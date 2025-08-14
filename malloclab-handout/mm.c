@@ -1,7 +1,7 @@
 /*
  * @Author       : FeiYehua
  * @Date         : 2015-04-02 02:12:26
- * @LastEditTime : 2025-08-14 17:35:07
+ * @LastEditTime : 2025-08-14 18:12:34
  * @LastEditors  : FeiYehua
  * @Description  :
  * @FilePath     : mm.c
@@ -282,7 +282,7 @@ static void *find_fit(size_t asize)
             unsigned int current_block_header_content = GET(current_block_header_pointer);
             unsigned int alloc = current_block_header_content & ALLOC;
             size_t size = current_block_header_content & (~0x7); // The size of free block
-            if ((!alloc) && size - 8 >= newsize)                 // Freed block have enough space to create a new block
+            if ((!alloc) && size - MIN_BLOCK_SIZE >= newsize)    // Freed block have enough space to create a new block
             {
                 split_block(current_bp, newsize, current_block_header_content);
                 return current_bp;
