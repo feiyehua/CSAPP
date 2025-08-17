@@ -1,7 +1,7 @@
 /*
  * @Author       : FeiYehua
  * @Date         : 2015-04-02 02:12:26
- * @LastEditTime : 2025-08-15 01:19:44
+ * @LastEditTime : 2025-08-18 00:55:07
  * @LastEditors  : FeiYehua
  * @Description  :
  * @FilePath     : mm.c
@@ -130,10 +130,25 @@ int mm_init(void)
  * mm_malloc - Allocate a block by incrementing the brk pointer.
  *     Always allocate a block whose size is a multiple of the alignment.
  */
+
+#define SMALL_SIZE 64
 void *mm_malloc(size_t size)
 {
     void *free_bp = find_fit(size);
-    return (free_bp != NULL) ? free_bp : extend_heap(size);
+    if (free_bp == NULL && size <= SMALL_SIZE)
+    {
+        size_t newsize = MAX(ALIGN(size + sizeof(size_t)), 16);
+        free_bp = extend_heap(newsize * 4 - sizeof(size_t));
+        void *free_bp_header_ptr = HDRP(free_bp);
+        unsigned int free_bp_header_content = GET(free_bp_header_ptr);
+        split_block(free_bp, newsize, free_bp_header_content);
+        return free_bp;
+    }
+    else if (free_bp == NULL)
+    {
+        return extend_heap(size);
+    }
+    return free_bp;
 }
 
 /*
@@ -148,8 +163,8 @@ void add_footer(void *bp)
 }
 
 /*
- * mm_free - Freeing a block does nothing.
- argument ptr is a pointer to the block payload.
+ * mm_free - Freeing a block.
+ * argument ptr is a pointer to the block payload.
  */
 void mm_free(void *ptr)
 {
@@ -303,37 +318,57 @@ static void *find_fit(size_t asize)
 
     void *current_bp = first_free_block; // The pointer to the first block's payload
     size_t max_size = 0;
+    size_t min_size = -1;
+    void *candidate = NULL;
     while (current_bp != NULL)
     {
         void *current_block_header_pointer = HDRP(current_bp);
         unsigned int current_block_header_content = GET(current_block_header_pointer);
-        unsigned int alloc = 0;
         size_t size = current_block_header_content & (~0x7); // The size of free block
         max_size = MAX(size, max_size);
-        if ((!alloc) && size - MIN_BLOCK_SIZE >= newsize) // Freed block have enough space to create a new block
+        if (size >= newsize && size < min_size)
         {
-            split_block(current_bp, newsize, current_block_header_content);
-            return current_bp;
-        }
-        else if ((!alloc) && size >= newsize)
-        {
-            delete(current_bp); // Remove the current block from free block list
-            update_next_block(current_bp, current_block_header_content);
-            return current_bp;
+            min_size = size;
+            candidate = current_bp;
         }
         current_bp = ((struct LIST *)current_bp)->next;
     }
-    max_free = max_size;
+    max_free = max_size; // Update the max_free tag
+
+    if (candidate == NULL)
+    {
+        return NULL;
+    }
+    // Return best-fit block
+    current_bp = candidate;
+    void *current_block_header_pointer = HDRP(current_bp);
+    unsigned int current_block_header_content = GET(current_block_header_pointer);
+    size_t size = current_block_header_content & (~0x7); // The size of free block
+    if (size - MIN_BLOCK_SIZE >= newsize)                // Freed block have enough space to create a new block
+    {
+        split_block(current_bp, newsize, current_block_header_content);
+        return current_bp;
+    }
+    else
+    {
+        delete(current_bp); // Remove the current block from free block list
+        update_next_block(current_bp, current_block_header_content);
+        return current_bp;
+    }
     return NULL;
 }
 
 /*
- * split_block - Split the given (free) block into half, with the first half having size size.
+ * split_block - Split the given (free or allocated) block into half, with the first half having size size.
+ * If the given block size is bigger than size, you must make sure in the latter half have nothing important!
  * The first block is always allocated.
  */
 static void split_block(void *bp, size_t size, unsigned int block_header_content)
 {
-    delete(bp);
+    if (!GET_ALLOC(HDRP(bp)))
+    {
+        delete(bp);
+    }
     size_t oldsize = block_header_content & (~0x7);
     unsigned int mask = block_header_content & 0x7;
     PUT(HDRP(bp), size | mask | ALLOC);
